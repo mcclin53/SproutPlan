@@ -1,0 +1,15 @@
+.signup-container {
+    background-image: url("./assets/images/ChefIcon1.png") ;
+    background-size: cover;
+    background-position: center;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-repeat: no-repeat;
+}
+@media (min-width: 1368px ){ 
+    .signup-container {
+    background-size: contain; 
+    }
+}
