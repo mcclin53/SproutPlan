@@ -18,7 +18,7 @@ return (
         <div className= "card">
           <div className="card-content">
               <span className="card-title deep-orange-text">
-                Dig a Bed
+                Dig a Bed<digBed />
               </span>
           </div>
         </div>

@@ -1,4 +1,4 @@
-import { gql } from '@apollo/client';
+import { gql, useMutation } from '@apollo/client';
 
 export const REGISTER = gql`
   mutation register($input: ProfileInput!) {
@@ -22,6 +22,17 @@ export const LOGIN_USER = gql`
         _id
         username
       }
+    }
+  }
+`;
+
+export const CREATE_BED = gql`
+  mutation CreateBed($width: Int!, $length: Int!) {
+    createBed(width: $width, length: $length) {
+      _id
+      width
+      length
+      plants
     }
   }
 `;
