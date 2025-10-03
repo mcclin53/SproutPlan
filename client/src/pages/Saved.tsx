@@ -8,7 +8,7 @@ function Favorites() {
             <div className="col s12">
               <div className="card">
                 <div className="card-content">
-                  <h1 className="card-title deep-orange-text">   <SaveFavorites /></h1>
+                  <h1 className="card-title">   <SaveFavorites /></h1>
                 </div>
               </div>
             </div>

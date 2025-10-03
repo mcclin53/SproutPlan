@@ -27,8 +27,8 @@ export const LOGIN_USER = gql`
 `;
 
 export const CREATE_BED = gql`
-  mutation CreateBed($width: Int!, $length: Int!) {
-    createBed(width: $width, length: $length) {
+  mutation CreateBed($width: Int!, $length: Int!, $plants: [String!]!) {
+    createBed(width: $width, length: $length, plants: $plants) {
       _id
       width
       length

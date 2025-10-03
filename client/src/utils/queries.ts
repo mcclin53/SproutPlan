@@ -30,3 +30,14 @@ export const QUERY_ME = gql`
     }
   }
 `;
+
+export const GET_BEDS = gql`
+  query GetBeds {
+    beds {
+      _id
+      width
+      length
+      plants
+    }
+  }
+`;

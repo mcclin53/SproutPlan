@@ -48,7 +48,7 @@ const Signup = () => {
       <div className="col-12">
         <div className="card">
           <div className="card-content">
-            <span className="card-title deep-orange-text">Sign Up</span>
+            <span className="card-title">Sign Up</span>
             {data ? (
               <p>
                 Success! You may now proceed to{' '}
@@ -93,7 +93,7 @@ const Signup = () => {
                   <label htmlFor="password" className="active">Password</label>
                 </div>
                 <button
-                  className="btn waves-effect waves-light deep-orange"
+                  className="btn"
                   type="submit"
                 >
                   Submit
@@ -102,7 +102,7 @@ const Signup = () => {
             )}
 
             {error && (
-              <div className="card-panel red lighten-4 red-text text-darken-4 my-3">
+              <div className="card-panel">
                 {error.message}
               </div>
             )}

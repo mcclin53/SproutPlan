@@ -10,10 +10,14 @@ type Profile {
     saved: [Plot]
 }
 
-    type Auth {
+  type Auth {
     token: ID!
     profile: Profile!
   }
+    type Plant {
+    _id: ID!
+    name: String!
+    }
 
   input ProfileInput {
     username: String!
@@ -21,16 +25,31 @@ type Profile {
     password: String!
   }
 
+    type Plant {
+  _id: ID!
+  name: String!
+}
+
+type Bed {
+  _id: ID!
+  width: Int!
+  length: Int!
+  plants: [String!]!
+}
+
   type Query {
     profiles: [Profile]
     profile(profileId: ID!): Profile
     me: Profile
+    plants: [Plant!]!
+    beds[Bed!]!
     }
 
     type Mutation {
         login(email: String!, password: String!): Auth
         register(input: ProfileInput!): Auth
         removeProfile: Profile
+        createBed(width: Int!, length: Int!): Bed!
         }
 `;
 

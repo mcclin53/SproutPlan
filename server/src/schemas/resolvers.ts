@@ -2,14 +2,7 @@ import { Profile } from "../models/index.js";
 import { signToken, AuthenticationError, UserExistsError } from "../utils/auth.js";
 import { IResolvers } from "@graphql-tools/utils";
 import { AuthRequest } from "../utils/auth";
-
-interface Profile {
-  _id: string;
-  username: string;
-  email: string;
-  password: string;
-  skills: string[];
-}
+import { Bed } from "../models/Bed.js";
 
 const resolvers: IResolvers = {
   Query: {
@@ -17,8 +10,10 @@ const resolvers: IResolvers = {
       if (!context.req.user) throw new AuthenticationError("Not authenticated");
       return await Profile.findById(context.req.user._id).populate("savedPlots");
     },
+    bed: async () => {
+      return await Bed.find();
+    },
   },
-}
 
 Mutation: {
     login: async (_, { email, password }) => {
@@ -37,12 +32,11 @@ Mutation: {
     register: async (_, { input }) => {
       const { username, email, password } = input;
 
-      // check if a profile with the same email already exists
       const existingProfile = await Profile.findOne({ email });
       if (existingProfile) {
         throw new UserExistsError("A profile with this email already exists.");
       }
-      // if not, create a new profile
+
       const profile = await Profile.create({ username, email, password });
       const token = signToken({
         _id: profile._id,
@@ -52,14 +46,9 @@ Mutation: {
       return { token, profile };
     },
 
-    type Bed {
-        _id: ID!
-         width: Int!
-        length: Int!
-        plants: [String]!
-    }
-
-    type Mutation {
-        createBed(width: Int!, length: Int!): Bed!
-    }
-}
+    createBed: async (_, { width, length }) => {
+      const bed = await Bed.create({ width, length, plants: [] });
+      return bed;
+    },
+  },
+};
