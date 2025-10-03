@@ -6,4 +6,4 @@ const bedSchema = new mongoose.Schema({
   plants: [{ type: mongoose.Schema.Types.ObjectId, ref: "Plant" }],
 });
 
-export default mongoose.model("Bed", bedSchema);
+export const Bed = mongoose.model("Bed", bedSchema);

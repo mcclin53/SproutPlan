@@ -7,7 +7,7 @@ interface IProfile extends Document {
   username: string;
   email: string;
   password:string;
-  favorites: string[];
+  saved: string[];
   isCorrectPassword(password: string): Promise<boolean>;
 }
 
@@ -34,7 +34,7 @@ const profileSchema = new Schema<IProfile>(
     saved: [
       {
         type: Schema.Types.ObjectId,
-        ref: 'savedPlots',
+        ref: 'Bed',
       },
     ],
   },

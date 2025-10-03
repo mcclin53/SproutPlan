@@ -10,7 +10,7 @@ const resolvers: IResolvers = {
       if (!context.req.user) throw new AuthenticationError("Not authenticated");
       return await Profile.findById(context.req.user._id).populate("savedPlots");
     },
-    bed: async () => {
+    beds: async () => {
       return await Bed.find();
     },
   },
@@ -52,3 +52,5 @@ Mutation: {
     },
   },
 };
+
+export default resolvers;

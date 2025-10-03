@@ -7,7 +7,7 @@ type Profile {
     username: String!
     email: String!
     password: String!
-    saved: [Plot]
+    saved: [Bed]
 }
 
   type Auth {
@@ -42,7 +42,7 @@ type Bed {
     profile(profileId: ID!): Profile
     me: Profile
     plants: [Plant!]!
-    beds[Bed!]!
+    beds: [Bed!]!
     }
 
     type Mutation {

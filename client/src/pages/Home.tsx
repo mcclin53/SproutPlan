@@ -5,13 +5,10 @@ import { useQuery } from '@apollo/client';
 import { GET_BEDS } from '../utils/queries';
 
 export default function Home () {
-  const { data. loading, error } = useQuery(GET_BEDS);
+  const { data, loading, error } = useQuery(GET_BEDS);
 
   if (loading) return <p>Loading...</p>
   if (error) return <p>Error: {error.message}</p>;
-}
-
-const Home = () => {
 
 return (
     <main className="home-container">
@@ -33,6 +30,4 @@ return (
       </div>
     </main>
   );
-};
-
-export default Home;
+}
