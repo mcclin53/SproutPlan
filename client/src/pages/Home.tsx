@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
-import "../assets/styles/home.css";
-import DigBed from "../components/DigBed"
+import Garden from "../components/Garden"
 import { useQuery } from '@apollo/client';
 import { GET_BEDS } from '../utils/queries';
 
@@ -11,22 +10,10 @@ export default function Home () {
   if (error) return <p>Error: {error.message}</p>;
 
 return (
-    <main className="home-container">
-      <div className="row">
-        <div className="col s12">
-          <div className="card-content">
-            <span className="card-title">Sprout&nbsp;Plan</span>
-            <p>Your personal garden planner and simulator.</p>
-            <DigBed />
-            <ul>
-              {data?.beds.map((bed: any) => (
-                <li key={bed._id}>
-                 {bed.width} × {bed.length}
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div> 
+    <main>
+      <div className = "main">
+        <p>Your personal garden planner and simulator.</p>
+        <Garden />
       </div>
     </main>
   );

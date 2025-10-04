@@ -80,7 +80,7 @@ const Login = () => {
                   <label htmlFor="password" className="active">Password</label>
                 </div>
                 <button
-                  className="btn"
+                  className="button"
                   type="submit"
                 >
                   Submit

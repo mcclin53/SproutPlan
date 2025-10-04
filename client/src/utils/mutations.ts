@@ -27,12 +27,39 @@ export const LOGIN_USER = gql`
 `;
 
 export const CREATE_BED = gql`
-  mutation CreateBed($width: Int!, $length: Int!, $plants: [String!]!) {
-    createBed(width: $width, length: $length, plants: $plants) {
+  mutation CreateBed($width: Int!, $length: Int!) {
+    createBed(width: $width, length: $length) {
       _id
       width
       length
       plants
+    }
+  }
+`;
+
+export const ADD_PLANTS_TO_BED = gql`
+  mutation AddPlantsToBed($bedId: ID!, $plants: [String!]!) {
+    addPlantsToBed(bedId: $bedId, plants: $plants) {
+      _id
+      width
+      length
+      plants
+    }
+  }
+`;
+
+export const REMOVE_BED = gql`
+  mutation RemoveBed($bedId: ID!) {
+    removeBed(bedId: $bedId) {
+      _id
+    }
+  }
+`;
+
+export const CLEAR_BEDS = gql`
+  mutation ClearBeds {
+    clearBeds {
+      _id
     }
   }
 `;

@@ -1,8 +1,7 @@
 import './index.css'
-
 import ReactDOM from 'react-dom/client';
 import { createBrowserRouter, RouterProvider } from 'react-router-dom';
-
+import PrivateRoute from './components/PrivateRoute';
 import App from './App';
 import Home from './pages/Home';
 import Login from './pages/Login';

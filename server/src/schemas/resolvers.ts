@@ -50,6 +50,26 @@ Mutation: {
       const bed = await Bed.create({ width, length, plants: [] });
       return bed;
     },
+
+    addPlantsToBed: async (_, { bedID, plants }) => {
+  const bed = await Bed.findById(bedID);
+  if (!bed) throw new Error("Bed not found");
+
+  bed.plants.push(...plants);
+  await bed.save();
+  return bed;
+},
+
+removeBed: async (_, { bedId }) => {
+    const bed = await Bed.findByIdAndDelete(bedId);
+    if (!bed) throw new Error("Bed not found");
+    return bed;
+  },
+
+  clearBeds: async () => {
+    await Bed.deleteMany({});
+    return [];
+  },
   },
 };
 

@@ -1,29 +1,28 @@
 import { useState } from "react";
 import { useMutation } from "@apollo/client";
-import { gql } from "@apollo/client";
 import { CREATE_BED } from "../utils/mutations";
-import { GET_BEDS } from "../utils/queries";
-import PlantSelector from "./SelectPlant";
 
-export default function DigBed() {
+interface DigBedProps {
+  onBedCreated: () => void;
+}
+
+export default function DigBed({ onBedCreated }: DigBedProps) {
   const [width, setWidth] = useState(0);
   const [length, setLength] = useState(0);
-  const [plants, setPlants] = useState<string[]>([]);
 
   const [createBed, { loading, error }] = useMutation(CREATE_BED, {
-    refetchQueries: [{ query: GET_BEDS }],
+    onCompleted: onBedCreated,
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    await createBed({ variables: { width, length, plants } });
+    await createBed({ variables: { width, length } });
     setWidth(0);
     setLength(0);
-    setPlants([]);
   };
 
   return (
-    <form onSubmit={handleSubmit}>
+    <form onSubmit={handleSubmit} style={{ marginBottom: "20px" }}>
       <label>
         Width:
         <input
@@ -32,8 +31,7 @@ export default function DigBed() {
           onChange={(e) => setWidth(Number(e.target.value))}
         />
       </label>
-      <br />
-      <label>
+      <label style={{ marginLeft: "10px" }}>
         Length:
         <input
           type="number"
@@ -41,11 +39,8 @@ export default function DigBed() {
           onChange={(e) => setLength(Number(e.target.value))}
         />
       </label>
-      <br />
-      <PlantSelector selectedPlants={plants} onChange={setPlants} />
-
-      <button type="submit" disabled={loading}>
-        {loading ? "Digging..." : "Dig Bed"}
+      <button  className="button" type="submit" disabled={loading} style={{ marginLeft: "10px" }}>
+        {loading ? "Digging..." : "Create Bed"}
       </button>
       {error && <p style={{ color: "red" }}>{error.message}</p>}
     </form>
