@@ -45,21 +45,25 @@ export const CREATE_BED = gql`
     }
   }
 `;
+
 export const ADD_PLANTS_TO_BED = gql`
   mutation AddPlantsToBed($bedId: ID!, $plantIds: [ID!]!) {
-  addPlantsToBed(bedId: $bedId, plantIds: $plantIds) {
-    _id
-    width
-    length
-    plants {
+    addPlantsToBed(bedId: $bedId, plantIds: $plantIds) {
       _id
-      name
-      image
-      waterReq
-      spacing
+      width
+      length
+      plants {
+        _id
+        plantType {
+          _id
+          name
+          image
+          waterReq
+          spacing
+        }
+      }
     }
   }
-}
 `;
 
 export const REMOVE_BED = gql`
