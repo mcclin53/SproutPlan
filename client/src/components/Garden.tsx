@@ -2,62 +2,58 @@ import { useQuery, useMutation } from "@apollo/client";
 import { GET_BEDS } from "../utils/queries";
 import { ADD_PLANTS_TO_BED, REMOVE_BED, CLEAR_BEDS } from "../utils/mutations";
 import DigBed from "./DigBed";
-import PlantSelector from "./SelectPlant";
-import { useState } from "react";
+// import PlantSelector from "./SelectPlant";
+// import { useState } from "react";
+import Bed from "./Bed";
+import Plant from "./Plant";
+import { DndProvider } from 'react-dnd';
+import { HTML5Backend } from 'react-dnd-html5-backend';
+
+const PLANTS = ["Tomato", "Carrot", "Lettuce", "Pepper", "Cucumber"];
 
 export default function Garden() {
   const { loading, error, data, refetch } = useQuery(GET_BEDS);
-  console.log(data.beds);
   const [addPlantsToBed] = useMutation(ADD_PLANTS_TO_BED, { onCompleted: () => refetch() });
   const [removeBed] = useMutation(REMOVE_BED, { refetchQueries: [{ query: GET_BEDS }] });
   const [clearBeds] = useMutation(CLEAR_BEDS, { refetchQueries: [{ query: GET_BEDS }] });
 
-  const [selectedBed, setSelectedBed] = useState<string | null>(null);
-  const [selectedPlants, setSelectedPlants] = useState<string[]>([]);
-
-  if (loading) return <p>Loading beds...</p>;
+   if (loading) return <p>Loading beds...</p>;
   if (error) return <p>Error: {error.message}</p>;
 
-  const handleAddPlants = async () => {
-    if (!selectedBed || selectedPlants.length === 0) return;
-    await addPlantsToBed({ variables: { bedId: selectedBed, plants: selectedPlants } });
-    setSelectedPlants([]);
-    setSelectedBed(null);
+  const handleDropPlant = async (bedId: string, plantName: string) => {
+    await addPlantsToBed({ variables: { bedId, plants: [plantName] } });
   };
 
   return (
     <div>
+      {/* Bed creation form */}
       <DigBed onBedCreated={() => refetch()} />
-      <div className="garden">
-        {data.beds.map((bed: any) => (
-          <div
-            key={bed._id}
-            className="bed-box"
-            style={{
-                width: `${bed.width * 50}px`,   // 50px per unit
-                height: `${bed.length * 50}px`,
-            }}
-            >
-            {bed.plants.length > 0 ? (
-                <ul className="plant-list">
-                {bed.plants.map((plant, i) => (
-                    <li key={i}>{plant}</li>
-                ))}
-                </ul>
-            ) : (
-                <p>No plants yet</p>
-            )}
-            <div>
-                <button  className="button" onClick={() => removeBed({ variables: { bedId: bed._id } })}>
-                Remove Bed
-                </button>
-            </div>
-            </div>
-        ))}
-      </div>
 
+      {/* Drag-and-drop garden */}
+      <DndProvider backend={HTML5Backend}>
+        <div className="garden">
+          {data.beds.map((bed: any) => (
+            <Bed
+              key={bed._id}
+              bed={bed}
+              onDropPlant={handleDropPlant}
+              onRemoveBed={() => removeBed({ variables: { bedId: bed._id } })}
+            />
+          ))}
+        </div>
+
+        {/* Plant palette for dragging */}
+        <div className="plant-palette">
+          <h3>Available Plants</h3>
+          {PLANTS.map((plant) => (
+            <Plant key={plant} name={plant} />
+          ))}
+        </div>
+      </DndProvider>
+
+      {/* Clear all beds button */}
       {data.beds.length > 0 && (
-        <button className="button" onClick={() => clearBeds()}>
+        <button className="button clear-beds" onClick={() => clearBeds()}>
           Clear All Beds
         </button>
       )}

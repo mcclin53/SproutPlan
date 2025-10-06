@@ -50,7 +50,7 @@ type Bed {
         register(input: ProfileInput!): Auth
         removeProfile: Profile
         createBed(width: Int!, length: Int!): Bed!
-        addPlantsToBed(bedID:ID!, plants: [String!]!): Bed!
+        addPlantsToBed(bedId: ID!, plantIds: [ID!]!): Bed
         removeBed(bedId:ID!) :Bed
         clearBeds: [Bed!]!
         }

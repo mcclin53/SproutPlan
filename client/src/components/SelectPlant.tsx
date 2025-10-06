@@ -1,3 +1,5 @@
+import React from "react";
+
 interface PlantSelectorProps {
   selectedPlants: string[];
   onChange: (plants: string[]) => void;

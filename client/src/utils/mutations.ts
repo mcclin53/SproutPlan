@@ -38,14 +38,18 @@ export const CREATE_BED = gql`
 `;
 
 export const ADD_PLANTS_TO_BED = gql`
-  mutation AddPlantsToBed($bedId: ID!, $plants: [String!]!) {
-    addPlantsToBed(bedId: $bedId, plants: $plants) {
+  mutation AddPlantsToBed($bedId: ID!, $plantIds: [ID!]!) {
+  addPlantsToBed(bedId: $bedId, plantIds: $plantIds) {
+    _id
+    width
+    length
+    plants {
       _id
-      width
-      length
-      plants
+      name
+      spacing
     }
   }
+}
 `;
 
 export const REMOVE_BED = gql`

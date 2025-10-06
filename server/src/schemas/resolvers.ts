@@ -51,13 +51,13 @@ Mutation: {
       return bed;
     },
 
-    addPlantsToBed: async (_, { bedID, plants }) => {
+    addPlantsToBed: async (_, { bedID, plantIds }) => {
   const bed = await Bed.findById(bedID);
   if (!bed) throw new Error("Bed not found");
 
-  bed.plants.push(...plants);
+  bed.plants.push(...plantIds);
   await bed.save();
-  return bed;
+  return bed.populate("plants");
 },
 
 removeBed: async (_, { bedId }) => {
