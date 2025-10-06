@@ -1,15 +1,35 @@
 import { useDrop } from "react-dnd";
 
+interface PlantType {
+  _id: string;
+  name: string;
+  image?: string;
+  waterReq?: string;
+  spacing?: number;
+}
+
+interface PlantInstance {
+  _id: string;
+  plantType: PlantType;
+}
+
 interface BedProps {
-  bed: any;
-  onDropPlant: (bedId: string, plantName: string) => void;
+  bed: {
+    _id: string;
+    width: number;
+    length: number;
+    plants: PlantInstance[];
+  };
+  onDropPlant: (bedId: string, plantId: string) => void;
   onRemoveBed: () => void;
 }
 
 export default function Bed({ bed, onDropPlant, onRemoveBed }: BedProps) {
   const [, drop] = useDrop(() => ({
     accept: "PLANT",
-    drop: (item: { name: string }) => onDropPlant(bed._id, item.name),
+    drop: (item: { id: string; name: string }) => {
+      onDropPlant(bed._id, item.id);
+    },
   }));
 
   return (
@@ -23,8 +43,10 @@ export default function Bed({ bed, onDropPlant, onRemoveBed }: BedProps) {
     >
       {bed.plants.length > 0 ? (
         <ul className="plant-list">
-          {bed.plants.map((plant: string, i: number) => (
-            <li key={i}>{plant}</li>
+          {bed.plants.map((plantInstance, i) => (
+            <li key={plantInstance._id}>{plantInstance.plantType.name}
+              <img src={plantInstance.plantType.image} alt={plantInstance.plantType.name} style={{ width: 40, height: 40 }} />
+            </li>
           ))}
         </ul>
       ) : (

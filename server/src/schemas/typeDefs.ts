@@ -14,27 +14,45 @@ type Profile {
     token: ID!
     profile: Profile!
   }
-    type Plant {
-    _id: ID!
-    name: String!
-    }
-
+\
   input ProfileInput {
     username: String!
     email: String!
     password: String!
   }
 
-    type Plant {
-  _id: ID!
-  name: String!
+  type Plant {
+    _id: ID!
+    name: String!
+    image: String
+    waterReq: String
+    nutrients: String
+    pH: Float
+    spacing: Int
+    companions: [String]
+    enemies: [String]
+    diseases: [String]
+    pests: [String]
+    daysToHarvest: Int
+    harvestAvg: Int
+    perennial: Boolean
+    annual: Boolean
+    frostZone: String
+    idealTemp: Int
+    comments: String
+  }
+    
+    type PlantInstance {
+      _id: ID!
+      plantType: Plant!
+      plantedAt: String
 }
 
-type Bed {
-  _id: ID!
-  width: Int!
-  length: Int!
-  plants: [String!]!
+  type Bed {
+    _id: ID!
+    width: Int!
+    length: Int!
+    plants: [PlantInstance]
 }
 
   type Query {

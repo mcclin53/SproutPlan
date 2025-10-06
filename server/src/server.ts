@@ -11,6 +11,7 @@ import { ApolloServer } from '@apollo/server';
 import { expressMiddleware } from '@apollo/server/express4';
 import { typeDefs, resolvers } from './schemas/index.js';
 import { authenticateToken } from './utils/auth.js';
+import { DEFAULT_PLANTS } from './seeds/plants.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -34,15 +35,21 @@ const startApolloServer = async () => {
   app.use(express.urlencoded({ extended: false }));
   app.use(express.json());
 
-  // ✅ GraphQL setup
+  app.use("/images", express.static(path.join(__dirname, "../public/images")));
+  
+  // GraphQL setup
   app.use(
     '/graphql',
     expressMiddleware(server, {
       context: async({ req }) => authenticateToken({ req }),
     })
   );
+// Gets the default plants
+  app.get('/api/seeds/plants', (_req: Request, res: Response) => {
+  res.json(DEFAULT_PLANTS);
+});
 
-  // ✅ Serve frontend in production
+  // Serve frontend in production
   if (process.env.NODE_ENV === 'production') {
     app.use(express.static(path.join(__dirname, '../../client/dist')));
     app.get('*', (_req: Request, res: Response) => {
@@ -53,6 +60,7 @@ const startApolloServer = async () => {
   app.listen(PORT, () => {
     console.log(`API server running on port ${PORT}!`);
     console.log(`GraphQL at http://localhost:${PORT}/graphql`);
+    console.log(`Static images served from /images`);
   });
 };
 

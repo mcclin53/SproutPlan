@@ -3,6 +3,7 @@ import { signToken, AuthenticationError, UserExistsError } from "../utils/auth.j
 import { IResolvers } from "@graphql-tools/utils";
 import { AuthRequest } from "../utils/auth";
 import { Bed } from "../models/Bed.js";
+import Plant from "../models/Plant.js";
 
 const resolvers: IResolvers = {
   Query: {
@@ -11,8 +12,16 @@ const resolvers: IResolvers = {
       return await Profile.findById(context.req.user._id).populate("savedPlots");
     },
     beds: async () => {
-      return await Bed.find();
-    },
+    return await Bed.find().populate({
+      path: "plants.plantType",
+      select: "_id name image waterReq spacing",
+    });
+  },
+    plants: async () => {
+    const plants = await Plant.find();
+    console.log("Fetched plants:", plants);
+    return plants;
+  },
   },
 
 Mutation: {
@@ -38,11 +47,11 @@ Mutation: {
       }
 
       const profile = await Profile.create({ username, email, password });
-      const token = signToken({
-        _id: profile._id,
-        email: profile.email,
-        username: profile.username,
-      });
+        const token = signToken({
+          _id: profile._id,
+          email: profile.email,
+          username: profile.username,
+        });
       return { token, profile };
     },
 
@@ -51,25 +60,33 @@ Mutation: {
       return bed;
     },
 
-    addPlantsToBed: async (_, { bedID, plantIds }) => {
-  const bed = await Bed.findById(bedID);
-  if (!bed) throw new Error("Bed not found");
+    addPlantsToBed: async (_, { bedId, plantIds }: { bedId: string; plantIds: string[] }) => {
+      const bed = await Bed.findById(bedId);
+      if (!bed) throw new Error("Bed not found");
 
-  bed.plants.push(...plantIds);
-  await bed.save();
-  return bed.populate("plants");
-},
+      plantIds.forEach((plantTypeId: string) => {
+      bed.plants.push({ plantType: plantTypeId });
+      });
 
-removeBed: async (_, { bedId }) => {
-    const bed = await Bed.findByIdAndDelete(bedId);
-    if (!bed) throw new Error("Bed not found");
-    return bed;
-  },
+      await bed.save();
+      return await bed.populate({
+        path: "plants.plantType",
+        select: "_id name image waterReq spacing",
+      });
+    },
 
-  clearBeds: async () => {
-    await Bed.deleteMany({});
-    return [];
-  },
+    removeBed: async (_, { bedId }) => {
+        const bed = await Bed.findById(bedId);
+        if (!bed) throw new Error("Bed not found");
+        
+        await Bed.findByIdAndDelete(bedId);
+        return bed;
+    },
+
+    clearBeds: async () => {
+        await Bed.deleteMany({});
+        return [];
+    },
   },
 };
 

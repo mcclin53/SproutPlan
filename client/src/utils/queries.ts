@@ -37,7 +37,26 @@ export const GET_BEDS = gql`
       _id
       width
       length
-      plants
+      plants {
+        _id
+        plantType {
+          _id
+          name
+          image
+          waterReq
+          spacing
+        }
+      }
+    }
+  }
+`;
+
+export const GET_PLANTS = gql`
+  query GetPlants {
+    plants {
+      _id
+      name
+      image
     }
   }
 `;
