@@ -4,6 +4,7 @@ import { IResolvers } from "@graphql-tools/utils";
 import { AuthRequest } from "../utils/auth";
 import { Bed } from "../models/Bed.js";
 import Plant from "../models/Plant.js";
+import mongoose from "mongoose";
 
 const resolvers: IResolvers = {
   Query: {
@@ -12,11 +13,12 @@ const resolvers: IResolvers = {
       return await Profile.findById(context.req.user._id).populate("savedPlots");
     },
     beds: async () => {
-    return await Bed.find().populate({
-      path: "plants.plantType",
-      select: "_id name image waterReq spacing",
-    });
-  },
+      const beds = await Bed.find().populate({
+        path: "plants.basePlant",
+        select: "_id name image waterReq spacing",
+      });
+      return beds.map(bed => ({ ...bed.toObject(), plantInstances: bed.plants }));
+    },
     plants: async () => {
     const plants = await Plant.find();
     console.log("Fetched plants:", plants);
@@ -57,31 +59,59 @@ Mutation: {
 
     createBed: async (_, { width, length }) => {
       const bed = await Bed.create({ width, length, plants: [] });
-      return bed;
+      const populated = await bed.populate({
+        path: "plants.basePlant",
+        select: "_id name image waterReq spacing",
+      });
+      return {
+        ...populated.toObject(),
+        plantInstances: populated.plants,
+      };
     },
 
-    addPlantsToBed: async (_, { bedId, plantIds }: { bedId: string; plantIds: string[] }) => {
+    addPlantsToBed: async (_, { bedId, basePlantIds }: { bedId: string; basePlantIds: string[] }) => {
       const bed = await Bed.findById(bedId);
       if (!bed) throw new Error("Bed not found");
 
-      plantIds.forEach((plantTypeId: string) => {
-      bed.plants.push({ plantType: plantTypeId });
-      });
-
+      basePlantIds.forEach(basePlantId => bed.plants.push({ basePlant: basePlantId }));
       await bed.save();
-      return await bed.populate({
-        path: "plants.plantType",
+
+      const populated = await bed.populate({
+        path: "plants.basePlant",
         select: "_id name image waterReq spacing",
       });
+      return { ...populated.toObject(), plantInstances: populated.plants };
     },
 
     removeBed: async (_, { bedId }) => {
-        const bed = await Bed.findById(bedId);
-        if (!bed) throw new Error("Bed not found");
-        
-        await Bed.findByIdAndDelete(bedId);
-        return bed;
+      const bed = await Bed.findById(bedId);
+      if (!bed) throw new Error("Bed not found");
+
+      await Bed.findByIdAndDelete(bedId);
+      return { ...bed.toObject(), plantInstances: bed.plants };
     },
+
+    removePlantsFromBed: async (
+    _,
+    { bedId, plantInstanceIds }: { bedId: string; plantInstanceIds: string[] }
+  ) => {
+    // Convert string IDs to ObjectId
+    const objectIds = plantInstanceIds.map((id) => new mongoose.Types.ObjectId(id));
+
+    // Use $pull to remove matching plant instances
+    const updatedBed = await Bed.findByIdAndUpdate(
+      bedId,
+      { $pull: { plants: { _id: { $in: objectIds } } } },
+      { new: true } // return the updated document
+    ).populate({
+      path: "plants.basePlant",
+      select: "_id name image waterReq spacing",
+    });
+
+    if (!updatedBed) throw new Error("Bed not found");
+
+    return updatedBed;
+  },
 
     clearBeds: async () => {
         await Bed.deleteMany({});

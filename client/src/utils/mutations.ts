@@ -32,9 +32,9 @@ export const CREATE_BED = gql`
       _id
       width
       length
-      plants {
+      plantInstances  {
         _id
-        plantType {
+        basePlant {
           _id
           name
           image
@@ -47,14 +47,34 @@ export const CREATE_BED = gql`
 `;
 
 export const ADD_PLANTS_TO_BED = gql`
-  mutation AddPlantsToBed($bedId: ID!, $plantIds: [ID!]!) {
-    addPlantsToBed(bedId: $bedId, plantIds: $plantIds) {
+  mutation AddPlantsToBed($bedId: ID!, $basePlantIds: [ID!]!) {
+    addPlantsToBed(bedId: $bedId, basePlantIds: $basePlantIds) {
       _id
       width
       length
-      plants {
+      plantInstances  {
         _id
-        plantType {
+        basePlant {
+          _id
+          name
+          image
+          waterReq
+          spacing
+        }
+      }
+    }
+  }
+`;
+
+export const REMOVE_PLANTS_FROM_BED = gql`
+  mutation RemovePlantsFromBed($bedId: ID!, $plantInstanceIds: [ID!]!) {
+    removePlantsFromBed(bedId: $bedId, plantInstanceIds: $plantInstanceIds) {
+      _id
+      width
+      length
+      plantInstances  {
+        _id
+        basePlant {
           _id
           name
           image

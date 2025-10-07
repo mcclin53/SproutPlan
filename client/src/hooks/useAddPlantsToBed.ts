@@ -16,9 +16,9 @@ export default function useAddPlantsToBed() {
                         _id
                         width
                         length
-                        plants {
+                        plantInstances {
                           _id
-                          plantType {
+                          basePlant {
                             _id
                             name
                             image
@@ -38,9 +38,9 @@ export default function useAddPlantsToBed() {
     },
   });
 
-  const addPlantsToBed = async (bedId: string, plantIds: string[]) => {
+  const addPlantsToBed = async (bedId: string, basePlantIds: string[]) => {
     try {
-      await addPlantsToBedMutation({ variables: { bedId, plantIds } });
+      await addPlantsToBedMutation({ variables: { bedId, basePlantIds } });
     } catch (err) {
       console.error("Error adding plant:", err);
     }

@@ -1,16 +1,21 @@
-import mongoose from "mongoose";
+import mongoose, { Schema, model } from "mongoose";
 
-const bedSchema = new mongoose.Schema({
-  width: { type: Number, required: true },
-  length: { type: Number, required: true },
-  plants: [
-    {
-      _id: { type: mongoose.Schema.Types.ObjectId, auto: true }, // unique instance ID
-      plantType: { type: mongoose.Schema.Types.ObjectId, ref: "Plant", required: true },
-      plantedAt: { type: Date, default: Date.now },
-      // optional per-instance info: growth stage, notes, etc.
-    }
-  ],
+const plantInstanceSchema = new Schema({
+  basePlant: {
+    type: Schema.Types.ObjectId,
+    ref: "Plant",
+    required: true,
+  },
+  plantedAt: {
+    type: Date,
+    default: Date.now,
+  },
 });
 
-export const Bed = mongoose.model("Bed", bedSchema);
+const bedSchema = new Schema({
+  width: { type: Number, required: true },
+  length: { type: Number, required: true },
+  plants: [plantInstanceSchema], // <-- use 'plants' array for instances
+});
+
+export const Bed = model("Bed", bedSchema);

@@ -22,7 +22,7 @@ export default function DigBed() {
                   length
                   plants {
                     _id
-                    plantType {
+                    basePlant {
                       _id
                       name
                       image

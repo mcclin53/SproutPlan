@@ -44,7 +44,7 @@ type Profile {
     
     type PlantInstance {
       _id: ID!
-      plantType: Plant!
+      basePlant: Plant!
       plantedAt: String
 }
 
@@ -52,7 +52,7 @@ type Profile {
     _id: ID!
     width: Int!
     length: Int!
-    plants: [PlantInstance]
+    plantInstances: [PlantInstance]
 }
 
   type Query {
@@ -68,8 +68,9 @@ type Profile {
         register(input: ProfileInput!): Auth
         removeProfile: Profile
         createBed(width: Int!, length: Int!): Bed!
-        addPlantsToBed(bedId: ID!, plantIds: [ID!]!): Bed
+        addPlantsToBed(bedId: ID!, basePlantIds: [ID!]!): Bed
         removeBed(bedId:ID!) :Bed
+        removePlantsFromBed(bedId: ID!, plantInstanceIds: [ID!]!): Bed
         clearBeds: [Bed!]!
         }
 `;
