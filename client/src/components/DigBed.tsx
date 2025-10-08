@@ -20,7 +20,7 @@ export default function DigBed() {
                   _id
                   width
                   length
-                  plants {
+                  plantInstances {
                     _id
                     basePlant {
                       _id
