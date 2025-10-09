@@ -69,6 +69,31 @@ Mutation: {
       };
     },
 
+    async moveBed(_, { bedId, position }) {
+      try {
+        const { x, y } = position;
+
+        // Update in MongoDB
+        const updatedBed = await Bed.findByIdAndUpdate(
+          bedId,
+          { x, y },
+          { new: true } // return the updated bed
+        ).populate({
+          path: "plants.basePlant",
+          select: "_id name image waterReq spacing",
+        });
+
+        if (!updatedBed) {
+          throw new Error("Bed not found");
+        }
+
+        return { ...updatedBed.toObject(), plantInstances: updatedBed.plants };
+      } catch (err) {
+        console.error("Error moving bed ${bedId}:", err);
+        throw new Error("Failed to move bed");
+      }
+    },
+
     addPlantsToBed: async (_, { bedId, basePlantIds }: { bedId: string; basePlantIds: string[] }) => {
       const bed = await Bed.findById(bedId);
       if (!bed) throw new Error("Bed not found");

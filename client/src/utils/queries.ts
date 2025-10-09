@@ -37,6 +37,8 @@ export const GET_BEDS = gql`
       _id
       width
       length
+      x
+      y
       plantInstances  {
         _id
         basePlant {

@@ -25,46 +25,55 @@ export default function Garden() {
   const [dragBeds, setDragBeds] = useState<DragBed[]>([]);
 
   // Update draggable beds whenever bedsData changes
-useEffect(() => {
-  if (!bedsData?.beds?.length) return;
+  useEffect(() => {
+    if (!bedsData?.beds?.length) return;
 
-  const GRID_SIZE = 50; // same as your bed size unit
-  const PADDING = 20;   // some space between beds
+    const GRID_SIZE = 50; // same as your bed size unit
+    const PADDING = 20;   // some space between beds
 
   setDragBeds(prevDragBeds => {
-    const existingIds = prevDragBeds.map(b => b._id);
-    const newBeds = bedsData.beds
-      .filter(b => !existingIds.includes(b._id))
-      .map((bed: any) => {
-        // Try to find an empty spot
-        let x = PADDING;
-        let y = PADDING;
+    const prevMap = new Map(prevDragBeds.map(b => [b._id, b]));
+    const placed: DragBed[] = [];
 
-        // Keep moving right and down until we find a spot that doesn't overlap
-        while (
-          prevDragBeds.some(
-            b =>
-              x < b.x + b.width * GRID_SIZE + PADDING &&
-              x + bed.width * GRID_SIZE + PADDING > b.x &&
-              y < b.y + b.length * GRID_SIZE + PADDING &&
-              y + bed.length * GRID_SIZE + PADDING > b.y
-          )
-        ) {
-          x += GRID_SIZE * bed.width + PADDING;
-          if (x + bed.width * GRID_SIZE > window.innerWidth - PADDING) {
-            x = PADDING;
-            y += GRID_SIZE * bed.length + PADDING;
-          }
+    for (const bed of bedsData.beds) {
+      // If server provided coordinates, use them (server is authoritative)
+      if (typeof bed.x === "number" && typeof bed.y === "number") {
+        placed.push({ ...bed });
+        continue;
+      }
+
+      // If we already have a local position for this bed, reuse it
+      const local = prevMap.get(bed._id);
+      if (local) {
+        // keep x/y from local but merge other fields from server
+        placed.push({ ...local, ...bed });
+        continue;
+      }
+
+      // 3) Otherwise compute a new, non-overlapping spot
+      let x = PADDING;
+      let y = PADDING;
+
+      const overlaps = (x: number, y: number, w: number, l: number) =>
+        [...prevDragBeds, ...placed].some(
+          (b) =>
+            x < b.x + b.width * GRID_SIZE + PADDING &&
+            x + w * GRID_SIZE + PADDING > b.x &&
+            y < b.y + b.length * GRID_SIZE + PADDING &&
+            y + l * GRID_SIZE + PADDING > b.y
+        );
+
+      while (overlaps(x, y, bed.width, bed.length)) {
+        x += GRID_SIZE * bed.width + PADDING;
+        if (x + bed.width * GRID_SIZE > window.innerWidth - PADDING) {
+          x = PADDING;
+          y += GRID_SIZE * bed.length + PADDING;
         }
+      }
 
-        return {
-          ...bed,
-          x,
-          y,
-        };
-      });
-
-    return [...prevDragBeds, ...newBeds];
+      placed.push({ ...bed, x, y });
+    }
+    return placed;
   });
 }, [bedsData]);
 

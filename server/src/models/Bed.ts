@@ -16,6 +16,8 @@ const bedSchema = new Schema({
   width: { type: Number, required: true },
   length: { type: Number, required: true },
   plants: [plantInstanceSchema], // <-- use 'plants' array for instances
+  x: { type: Number, default: 0 },
+  y: { type: Number, default: 0 },
 });
 
 export const Bed = model("Bed", bedSchema);
