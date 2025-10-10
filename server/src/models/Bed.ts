@@ -10,6 +10,8 @@ const plantInstanceSchema = new Schema({
     type: Date,
     default: Date.now,
   },
+  x: { type: Number, default: 0 },
+  y: { type: Number, default: 0 },
 });
 
 const bedSchema = new Schema({

@@ -94,6 +94,28 @@ Mutation: {
       }
     },
 
+    async movePlantInBed(_, { bedId, position }) {
+      const { plantInstanceId, x, y } = position;
+
+      const bed = await Bed.findById(bedId);
+      if (!bed) throw new Error("Bed not found");
+
+      const plant = bed.plants.id(plantInstanceId);
+      if (!plant) throw new Error("Plant instance not found");
+
+      plant.x = x;
+      plant.y = y;
+
+      await bed.save();
+
+      const populated = await bed.populate({
+        path: "plants.basePlant",
+        select: "_id name image waterReq spacing",
+      });
+
+      return { ...populated.toObject(), plantInstances: populated.plants };
+    },
+
     addPlantsToBed: async (_, { bedId, basePlantIds }: { bedId: string; basePlantIds: string[] }) => {
       const bed = await Bed.findById(bedId);
       if (!bed) throw new Error("Bed not found");

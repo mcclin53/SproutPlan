@@ -42,10 +42,17 @@ const typeDefs = gql`
     comments: String
   }
     
+  input PlantPositionInput {
+    plantInstanceId: ID!
+    x: Int!
+    y: Int!
+}
   type PlantInstance {
     _id: ID!
     basePlant: Plant!
     plantedAt: String
+    x: Int!
+    y: Int!
   }
 
   type Bed {
@@ -80,6 +87,7 @@ const typeDefs = gql`
     removePlantsFromBed(bedId: ID!, plantInstanceIds: [ID!]!): Bed
     clearBeds: [Bed!]!
     moveBed(bedId: ID!, position: PositionInput!): Bed
+    movePlantInBed(bedId: ID!, position: PlantPositionInput!): Bed!
   }
 `;
 

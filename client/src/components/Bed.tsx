@@ -1,26 +1,16 @@
 import React, { useState, useEffect } from "react";
 import { useDrop, useDrag } from "react-dnd";
 import useRemovePlantsFromBed from "../hooks/useRemovePlantsFromBed";
-
-interface BasePlant {
-  _id: string;
-  name: string;
-  image?: string;
-  waterReq?: string;
-  spacing?: number;
-}
-
-interface PlantInstance {
-  _id: string;
-  basePlant: BasePlant;
-}
+import { useMutation, gql } from "@apollo/client";
+import useDragPlant from "../hooks/useDragPlant";
+import PlantInstanceComponent from "./PlantInstance";
 
 interface BedProps {
   bed: {
     _id: string;
     width: number;
     length: number;
-    plantInstances?: PlantInstance[];
+    plantInstances?: any[];
     x: number;
     y: number;
   };
@@ -29,13 +19,35 @@ interface BedProps {
   moveBed?: (bedId: string, deltaX: number, deltaY: number) => void;
 }
 
+const MOVE_PLANT_IN_BED = gql`
+  mutation MovePlantInBed($bedId: ID!, $position: PlantPositionInput!) {
+    movePlantInBed(bedId: $bedId, position: $position) {
+      _id
+      plantInstances {
+        _id
+        x
+        y
+        basePlant {
+          _id
+          name
+          image
+          waterReq
+          spacing
+        }
+      }
+    }
+  }
+`;
+
 export default function Bed({ bed, onDropPlant, onRemoveBed, moveBed }: BedProps) {
-  const removePlantsFromBed = useRemovePlantsFromBed();
+  
+  const [movePlantInBedMutation] = useMutation(MOVE_PLANT_IN_BED);
 
   // Plant drop
   const [, drop] = useDrop(() => ({
-    accept: "PLANT",
-    drop: (item: { id: string; name: string }) => {
+    accept: ["PLANT", "PLANT_INSTANCE"], // 👈 accept both
+    drop: (item: any, monitor) => {
+      if (item.type === "PLANT_INSTANCE") return; // handled inside plant
       onDropPlant(bed._id, item.id);
     },
   }));
@@ -53,28 +65,8 @@ export default function Bed({ bed, onDropPlant, onRemoveBed, moveBed }: BedProps
       isDragging: monitor.isDragging(),
     }),
   }));
-
-  const handleRemovePlant = (plantInstanceId: string) => {
-    removePlantsFromBed(bed._id, [plantInstanceId]);
-  };
-
+  
   const plantInstances = bed?.plantInstances || [];
-
-  // API base for images
-  const BASE_URL = (import.meta.env.VITE_API_URL as string) || "http://localhost:3001";
-
-  // Track failed images by plantInstance id
-  const [failedImages, setFailedImages] = useState<Record<string, boolean>>({});
-
-  useEffect(() => {
-    setFailedImages(prev => {
-      const keep: Record<string, boolean> = {};
-      plantInstances.forEach(pi => {
-        if (prev[pi._id]) keep[pi._id] = true;
-      });
-      return keep;
-    });
-  }, [plantInstances.map(pi => pi._id).join(",")]);
 
   return (
     <div
@@ -90,58 +82,27 @@ export default function Bed({ bed, onDropPlant, onRemoveBed, moveBed }: BedProps
         cursor: moveBed ? "move" : "default",
       }}
     >
+      <div
+        className="bed-inner"
+        style={{ position: "relative", width: "100%", height: "100%" }}
+      >
       {plantInstances.length > 0 ? (
-        <ul className="plant-list">
-          {plantInstances.map((plantInstance) => {
-            const imgField = plantInstance.basePlant.image;
-            const remote =
-              imgField && imgField.startsWith("/")
-                ? `${BASE_URL}${imgField}`
-                : imgField
-                ? `${BASE_URL}/images/${imgField}`
-                : `${BASE_URL}/images/placeholder.png`;
-
-            const imageSrc = failedImages[plantInstance._id] ? `${BASE_URL}/images/placeholder.png` : remote;
-
-            return (
-              <li key={plantInstance._id} style={{ display: "flex", alignItems: "center" }}>
-                <img
-                  src={imageSrc}
-                  alt={plantInstance.basePlant.name}
-                  title={plantInstance.basePlant.name}
-                  style={{ width: 40, height: 40 }}
-                  onError={(e) => {
-                    const id = plantInstance._id;
-                    setFailedImages(prev => (prev[id] ? prev : { ...prev, [id]: true }));
-                    const target = e.target as HTMLImageElement;
-                    if (!target.src.endsWith("/images/placeholder.png")) {
-                      target.src = `${BASE_URL}/images/placeholder.png`;
-                    }
-                  }}
-                />
-                <button
-                  className="button"
-                  style={{
-                    background: "#e74c3c",
-                    color: "white",
-                    border: "none",
-                    borderRadius: "4px",
-                    padding: "2px 6px",
-                    cursor: "pointer",
-                    fontSize: "0.8rem",
-                    marginLeft: "5px",
-                  }}
-                  onClick={() => handleRemovePlant(plantInstance._id)}
-                >
-                  ❌
-                </button>
-              </li>
-            );
-          })}
-        </ul>
+        plantInstances.map((plantInstance) => (
+          <PlantInstanceComponent
+            key={plantInstance._id}
+            plantInstance={plantInstance}
+            bedId={bed._id}
+            movePlantInBed={(bedId, plantId, newX, newY) =>
+              movePlantInBedMutation({
+                variables: { bedId, position: { plantInstanceId: plantId, x: newX, y: newY } },
+              }).catch(err => console.error(err))
+            }
+          />
+        ))
       ) : (
         <p>No plants yet</p>
       )}
+      </div>
 
       <div className="bed-buttons">
         <button className="button" onClick={onRemoveBed}>
