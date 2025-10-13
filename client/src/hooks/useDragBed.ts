@@ -64,7 +64,7 @@ export default function useDragBed(initialBeds: DragBed[]) {
             }
           }).catch(err => console.error("Failed to move bed:", err));
 
-          return { ...bed, x: newX, y: newY };
+          return { ...bed, x: newX, y: newY, plantInstances: bed.plantInstances };
         });
       });
     },

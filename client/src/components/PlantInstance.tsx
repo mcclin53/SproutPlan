@@ -1,7 +1,5 @@
-import React from "react";
-import { useState,useEffect } from "react";
+import React, { useState } from "react";
 import useDragPlant from "../hooks/useDragPlant";
-import  useRemovePlantsFromBed from "../hooks/useRemovePlantsFromBed";
 
 interface BasePlant {
   _id: string;
@@ -23,34 +21,35 @@ interface Props {
   bedId: string;
   movePlantInBed: (bedId: string, plantId: string, newX: number, newY: number) => void;
   getPlantCoordinates: (bedId: string, plantId: string) => { x: number; y: number } | undefined;
+  handleRemovePlant: (bedId: string, plantInstanceId: string) => void; // Pass down from Garden.tsx
 }
 
 const BASE_URL = (import.meta.env.VITE_API_URL as string) || "http://localhost:3001";
 
-export default function PlantInstanceComponent({ plantInstance, bedId, movePlantInBed, getPlantCoordinates }: Props) {
-    const removePlantsFromBed = useRemovePlantsFromBed();
+export default function PlantInstanceComponent({
+  plantInstance,
+  bedId,
+  movePlantInBed,
+  getPlantCoordinates,
+  handleRemovePlant,
+}: Props) {
+  const [failedImages, setFailedImages] = useState(false);
 
-    const [failedImages, setFailedImages] = useState(false);
-  
-    const { ref, isDraggingPlant } = useDragPlant({
-        plantInstanceId: plantInstance._id,
-        bedId,
-        movePlantInBed,
-        getPlantCoordinates
-    });
+  const { ref, isDraggingPlant } = useDragPlant({
+    plantInstanceId: plantInstance._id,
+    bedId,
+    movePlantInBed,
+    getPlantCoordinates,
+  });
 
-    const imgField = plantInstance.basePlant.image;
-    const remote =
-        imgField && imgField.startsWith("/")
-        ? `${BASE_URL}${imgField}`
-        : imgField
-        ? `${BASE_URL}/images/${imgField}`
-        : `${BASE_URL}/images/placeholder.png`;
-    const imageSrc = failedImages ? `${BASE_URL}/images/placeholder.png` : remote;
-
-    const handleRemovePlant = (plantInstanceId: string) => {
-        removePlantsFromBed(bedId, [plantInstanceId]);
-  };
+  const imgField = plantInstance.basePlant.image;
+  const remote =
+    imgField && imgField.startsWith("/")
+      ? `${BASE_URL}${imgField}`
+      : imgField
+      ? `${BASE_URL}/images/${imgField}`
+      : `${BASE_URL}/images/placeholder.png`;
+  const imageSrc = failedImages ? `${BASE_URL}/images/placeholder.png` : remote;
 
   return (
     <div
@@ -63,35 +62,35 @@ export default function PlantInstanceComponent({ plantInstance, bedId, movePlant
         cursor: "move",
       }}
     >
-        <img
-            src={imageSrc}
-            alt={plantInstance.basePlant.name}
-            title={plantInstance.basePlant.name}
-            style={{ width: 40, height: 40 }}
-            onError={(e) => {
-                setFailedImages(true );
-                const target = e.target as HTMLImageElement;
-                if (!target.src.endsWith("/images/placeholder.png")) {
-                target.src = `${BASE_URL}/images/placeholder.png`;
-                }
-            }}
-        />
-        <button
-            className="button"
-            style={{
-                background: "#e74c3c",
-                color: "white",
-                border: "none",
-                borderRadius: "4px",
-                padding: "2px 6px",
-                cursor: "pointer",
-                fontSize: "0.8rem",
-                marginLeft: "5px",
-            }}
-            onClick={() => handleRemovePlant(plantInstance._id)}
-        >
-            ❌
-        </button>
+      <img
+        src={imageSrc}
+        alt={plantInstance.basePlant.name}
+        title={plantInstance.basePlant.name}
+        style={{ width: 40, height: 40 }}
+        onError={(e) => {
+          setFailedImages(true);
+          const target = e.target as HTMLImageElement;
+          if (!target.src.endsWith("/images/placeholder.png")) {
+            target.src = `${BASE_URL}/images/placeholder.png`;
+          }
+        }}
+      />
+      <button
+        className="button"
+        style={{
+          background: "#e74c3c",
+          color: "white",
+          border: "none",
+          borderRadius: "4px",
+          padding: "2px 6px",
+          cursor: "pointer",
+          fontSize: "0.8rem",
+          marginLeft: "5px",
+        }}
+        onClick={() => handleRemovePlant(bedId, plantInstance._id)} // Use parent handler
+      >
+        ❌
+      </button>
     </div>
   );
 }

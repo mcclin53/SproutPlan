@@ -24,9 +24,30 @@ const authLink = setContext((_, { headers }) => {
   };
 });
 
+const cache = new InMemoryCache({
+  typePolicies: {
+    Bed: {
+      keyFields: ["_id"],
+      fields: {
+        plantInstances: {
+          merge(existing = [], incoming: any[]) {
+            const merged = [...existing];
+            incoming.forEach(incomingPlant => {
+              if (!existing.some((p: any) => p._id === incomingPlant._id)) {
+                merged.push(incomingPlant);
+              }
+            });
+            return merged;
+          },
+        },
+      },
+    },
+  },
+});
+
 const client = new ApolloClient({
   link: authLink.concat(httpLink),
-  cache: new InMemoryCache(),
+  cache,
 });
 
 function App() {

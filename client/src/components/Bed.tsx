@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useDrop, useDrag } from "react-dnd";
 import useRemovePlantsFromBed from "../hooks/useRemovePlantsFromBed";
 import { useMutation, gql } from "@apollo/client";
@@ -14,11 +14,12 @@ interface BedProps {
     x: number;
     y: number;
   };
-  onDropPlant: (bedId: string, plantInstanceId: string) => void;
+  onDropPlant: (bedId: string, plantInstanceId: string, x: number, y: number) => void;
   onRemoveBed: () => void;
   moveBed?: (bedId: string, deltaX: number, deltaY: number) => void;
   movePlantInBed: (bedId: string, plantId: string, newX: number, newY: number) => void;
   getPlantCoordinates: (bedId: string, plantId: string) => { x: number; y: number } | undefined;
+  handleRemovePlant: (bedId: string, plantInstanceId: string) => void;
 }
 
 const MOVE_PLANT_IN_BED = gql`
@@ -41,8 +42,22 @@ const MOVE_PLANT_IN_BED = gql`
   }
 `;
 
-export default function Bed({ bed, onDropPlant, onRemoveBed, moveBed, movePlantInBed, getPlantCoordinates }: BedProps) {
-  
+function mergeRefs<T>(...refs: Array<React.Ref<T> | undefined>) {
+  return (node: T) => {
+    refs.forEach(ref => {
+      if (!ref) return;
+      if (typeof ref === "function") {
+        ref(node);
+      } else {
+        // @ts-ignore
+        ref.current = node;
+      }
+    });
+  };
+}
+
+export default function Bed({ bed, onDropPlant, onRemoveBed, moveBed, movePlantInBed, getPlantCoordinates, handleRemovePlant }: BedProps) {
+  const dropRef = useRef<HTMLDivElement>(null)
   const [movePlantInBedMutation] = useMutation(MOVE_PLANT_IN_BED);
 
   // Plant drop
@@ -75,9 +90,18 @@ const [, drop] = useDrop(() => ({
     // Drop new plant
     const itemType = monitor.getItemType();
     if (item.type === "PLANT") {
-      console.log("🪴 Dropping new plant:", item);
-    onDropPlant(bed._id, item.id);
-    }
+  const clientOffset = monitor.getClientOffset();
+  const dropTargetRect = dropRef.current?.getBoundingClientRect();
+
+  if (!clientOffset || !dropTargetRect) return;
+
+  const x = Math.round(clientOffset.x - dropTargetRect.left);
+  const y = Math.round(clientOffset.y - dropTargetRect.top);
+
+  console.log("Dropping new plant at local coordinates:", { x, y });
+
+  onDropPlant(bed._id, item.id, x, y);
+}
   },
 }));
 
@@ -99,7 +123,7 @@ const [, drop] = useDrop(() => ({
 
   return (
     <div
-      ref={(node) => { drag(node); drop(node); }}
+      ref={mergeRefs(drag, drop, dropRef)}
       className="bed-box"
       style={{
         width: `${bed.width * 50}px`,
@@ -123,6 +147,7 @@ const [, drop] = useDrop(() => ({
             bedId={bed._id}
             movePlantInBed={movePlantInBed}
             getPlantCoordinates={getPlantCoordinates}
+            handleRemovePlant={handleRemovePlant}
           />
         ))
       ) : (
