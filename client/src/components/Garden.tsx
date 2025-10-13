@@ -1,5 +1,5 @@
-import { useQuery } from "@apollo/client";
-import { useState, useEffect } from "react";
+import { useQuery, useMutation } from "@apollo/client";
+import { useState, useEffect, useCallback } from "react";
 import { GET_BEDS, GET_PLANTS } from "../utils/queries";
 import DigBed from "./DigBed";
 import Bed from "./Bed";
@@ -11,11 +11,12 @@ import useRemoveBed from "../hooks/useRemoveBed";
 import useClearBeds from "../hooks/useClearBeds";
 import useDragBed from "../hooks/useDragBed";
 import type { DragBed } from "../hooks/useDragBed";
+import { MOVE_PLANT_IN_BED } from "../utils/mutations";
 
 export default function Garden() {
   const { loading: bedsLoading, error: bedsError, data: bedsData } = useQuery(GET_BEDS);
   const { loading: plantsLoading, error: plantsError, data: plantsData } = useQuery(GET_PLANTS);
-
+  console.log("Fetched plants:", plantsData?.plants);
   const addPlantsToBed = useAddPlantsToBed();
   const clearBeds = useClearBeds();
   const removeLocalBed = (bedId: string) => {
@@ -23,6 +24,34 @@ export default function Garden() {
   };
   const removeBed = useRemoveBed(removeLocalBed);
   const [dragBeds, setDragBeds] = useState<DragBed[]>([]);
+  const [movePlantInBedMutation] = useMutation(MOVE_PLANT_IN_BED);
+
+  const movePlantInBed = (bedId: string, plantId: string, newX: number, newY: number) => {
+    console.log(`movePlantInBed called for plant ${plantId} in bed ${bedId} -> x:${newX}, y:${newY}`);
+    // Update local state immediately
+    setDragBeds(prev =>
+      prev.map(bed =>
+        bed._id === bedId
+          ? {
+              ...bed,
+              plantInstances: (bed.plantInstances || []).map(p =>
+                p._id === plantId ? { ...p, x: newX, y: newY } : p
+              ),
+            }
+          : bed
+      )
+    );
+    // Fire-and-forget mutation to server
+    movePlantInBedMutation({
+      variables: { bedId, position: { plantInstanceId: plantId, x: newX, y: newY } },
+    }).catch(err => console.error(err));
+  };
+
+  const getPlantCoordinates = useCallback((bedId: string, plantId: string) => {
+  const targetBed = dragBeds.find(b => b._id === bedId);
+  const plant = targetBed?.plantInstances?.find(p => p._id === plantId);
+  return plant ? { x: plant.x ?? 0, y: plant.y ?? 0 } : undefined;
+}, [dragBeds]);
 
   // Update draggable beds whenever bedsData changes
   useEffect(() => {
@@ -106,18 +135,21 @@ export default function Garden() {
         <div className="garden" style={{ position: "relative", width: "100%", height: "100%" }}>
           {beds.map((bed) => (
             <Bed
-  key={bed._id}
-  bed={bed}
-  onDropPlant={(bedId, plantId) =>
-    addPlantsToBed(bedId, [plantId], (updatedBed) => {
-      setDragBeds(prev =>
-        prev.map(b => (b._id === updatedBed._id ? { ...b, plantInstances: updatedBed.plantInstances } : b))
-      );
-    })
-  }
-  onRemoveBed={() => removeBed(bed._id)}
-  moveBed={moveBed}
-/>
+              key={bed._id}
+              bed={bed}
+              onDropPlant={(bedId, plantId) =>
+                addPlantsToBed(bedId, [plantId], (updatedBed) => {
+                  console.log("Updated bed from mutation:", updatedBed);
+                  setDragBeds(prev =>
+                    prev.map(b => (b._id === updatedBed._id ? { ...b, plantInstances: updatedBed.plantInstances } : b))
+                  );
+                })
+              }
+              onRemoveBed={() => removeBed(bed._id)}
+              moveBed={moveBed}
+              movePlantInBed={movePlantInBed}
+              getPlantCoordinates={getPlantCoordinates}
+            />
           ))}
         </div>
       </DndProvider>

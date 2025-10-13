@@ -50,6 +50,12 @@ export default function useAddPlantsToBed() {
     basePlantIds: string[],
     onUpdate?: (updatedBed: any) => void // <-- optional callback
   ) => {
+      console.log("addPlantsToBed called:", bedId, basePlantIds);
+
+  if (!basePlantIds || basePlantIds.some(id => !id)) {
+    console.error("Invalid basePlantIds passed:", basePlantIds);
+    return;
+  }
     try {
       const { data } = await addPlantsToBedMutation({
         variables: { bedId, basePlantIds },

@@ -1,40 +1,43 @@
-import { useDrag, useDrop } from "react-dnd";
+import { useDrag } from "react-dnd";
 import { useCallback } from "react";
 
 interface UseDragPlantProps {
   plantInstanceId: string;
-  x: number;
-  y: number;
   bedId: string;
-  movePlantInBed: (bedId: string, plantInstanceId: string, x: number, y: number) => void;
+  movePlantInBed: (bedId: string, plantId: string, newX: number, newY: number) => void;
+  getPlantCoordinates: (bedId: string, plantId: string) => { x: number; y: number } | undefined;
 }
 
-export default function useDragPlant({ plantInstanceId, x, y, bedId, movePlantInBed }: UseDragPlantProps) {
-  const [, drop] = useDrop(() => ({
-    accept: "PLANT_INSTANCE",
-    drop: (item: any, monitor) => {
+export default function useDragPlant({
+  plantInstanceId,
+  bedId,
+  movePlantInBed,
+  getPlantCoordinates,
+}: UseDragPlantProps) {
+  const [{ isDraggingPlant }, drag] = useDrag(() => ({
+    type: "PLANT_INSTANCE",
+    item: { plantInstanceId, bedId, type: "PLANT_INSTANCE" },
+    collect: (monitor) => ({
+      isDraggingPlant: monitor.isDragging(),
+    }),
+    end: (item, monitor) => {
       const delta = monitor.getDifferenceFromInitialOffset();
       if (!delta) return;
+      const coords = getPlantCoordinates(bedId, plantInstanceId);
+      if (!coords) return;
 
-      const newX = Math.max(0, Math.round(item.x + delta.x));
-      const newY = Math.max(0, Math.round(item.y + delta.y));
+      const newX = Math.max(0, Math.round(coords.x + delta.x));
+      const newY = Math.max(0, Math.round(coords.y + delta.y));
 
       movePlantInBed(bedId, plantInstanceId, newX, newY);
     },
   }));
 
-  const [{ isDraggingPlant }, drag] = useDrag(() => ({
-    type: "PLANT_INSTANCE",
-    item: { plantInstanceId, x, y },
-    collect: (monitor) => ({ isDraggingPlant: monitor.isDragging() }),
-  }));
-
-  // Combine refs
   const ref = useCallback(
     (node: HTMLElement | null) => {
-      drag(drop(node));
+      if (node) drag(node);
     },
-    [drag, drop]
+    [drag]
   );
 
   return { ref, isDraggingPlant };

@@ -22,21 +22,21 @@ interface Props {
   plantInstance: PlantInstance;
   bedId: string;
   movePlantInBed: (bedId: string, plantId: string, newX: number, newY: number) => void;
+  getPlantCoordinates: (bedId: string, plantId: string) => { x: number; y: number } | undefined;
 }
 
 const BASE_URL = (import.meta.env.VITE_API_URL as string) || "http://localhost:3001";
 
-export default function PlantInstanceComponent({ plantInstance, bedId, movePlantInBed }: Props) {
+export default function PlantInstanceComponent({ plantInstance, bedId, movePlantInBed, getPlantCoordinates }: Props) {
     const removePlantsFromBed = useRemovePlantsFromBed();
 
     const [failedImages, setFailedImages] = useState(false);
   
     const { ref, isDraggingPlant } = useDragPlant({
         plantInstanceId: plantInstance._id,
-        x: plantInstance.x,
-        y: plantInstance.y,
         bedId,
-        movePlantInBed
+        movePlantInBed,
+        getPlantCoordinates
     });
 
     const imgField = plantInstance.basePlant.image;

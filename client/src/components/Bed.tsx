@@ -17,6 +17,8 @@ interface BedProps {
   onDropPlant: (bedId: string, plantInstanceId: string) => void;
   onRemoveBed: () => void;
   moveBed?: (bedId: string, deltaX: number, deltaY: number) => void;
+  movePlantInBed: (bedId: string, plantId: string, newX: number, newY: number) => void;
+  getPlantCoordinates: (bedId: string, plantId: string) => { x: number; y: number } | undefined;
 }
 
 const MOVE_PLANT_IN_BED = gql`
@@ -39,18 +41,50 @@ const MOVE_PLANT_IN_BED = gql`
   }
 `;
 
-export default function Bed({ bed, onDropPlant, onRemoveBed, moveBed }: BedProps) {
+export default function Bed({ bed, onDropPlant, onRemoveBed, moveBed, movePlantInBed, getPlantCoordinates }: BedProps) {
   
   const [movePlantInBedMutation] = useMutation(MOVE_PLANT_IN_BED);
 
   // Plant drop
-  const [, drop] = useDrop(() => ({
-    accept: ["PLANT", "PLANT_INSTANCE"], // 👈 accept both
-    drop: (item: any, monitor) => {
-      if (item.type === "PLANT_INSTANCE") return; // handled inside plant
-      onDropPlant(bed._id, item.id);
-    },
-  }));
+const [, drop] = useDrop(() => ({
+  accept: ["PLANT", "PLANT_INSTANCE"],
+  drop: (item: any, monitor) => {
+    const delta = monitor.getDifferenceFromInitialOffset();
+    if (!delta) return;
+    console.log("Dropped item:", item);
+
+    if (item.type === "PLANT_INSTANCE") {
+    const coords = getPlantCoordinates(bed._id, item.plantInstanceId);
+      if (!coords) {
+        console.error("❌ Plant not found in bed!", {
+          bedId: bed._id,
+          plantInstanceId: item.plantInstanceId,
+        });
+        return;
+      }
+  
+      const newX = Math.max(0, Math.round(coords.x + delta.x));
+      const newY = Math.max(0, Math.round(coords.y + delta.y));
+
+      console.log(
+        "🌿 Moving plant", item.plantInstanceId,
+        "from", coords,
+        "to", { x: newX, y: newY },
+        "Δ", delta
+      );
+
+      movePlantInBed(bed._id, item.plantInstanceId, newX, newY);
+      return;
+    }
+
+    // Drop new plant
+    const itemType = monitor.getItemType();
+    if (item.type === "PLANT") {
+      console.log("🪴 Dropping new plant:", item);
+    onDropPlant(bed._id, item.id);
+    }
+  },
+}));
 
   // Drag bed
   const [{ isDragging }, drag] = useDrag(() => ({
@@ -92,11 +126,8 @@ export default function Bed({ bed, onDropPlant, onRemoveBed, moveBed }: BedProps
             key={plantInstance._id}
             plantInstance={plantInstance}
             bedId={bed._id}
-            movePlantInBed={(bedId, plantId, newX, newY) =>
-              movePlantInBedMutation({
-                variables: { bedId, position: { plantInstanceId: plantId, x: newX, y: newY } },
-              }).catch(err => console.error(err))
-            }
+            movePlantInBed={movePlantInBed}
+            getPlantCoordinates={getPlantCoordinates}
           />
         ))
       ) : (

@@ -32,6 +32,8 @@ export const CREATE_BED = gql`
       _id
       width
       length
+      x
+      y
       plantInstances  {
         _id
         basePlant {
@@ -84,6 +86,26 @@ export const REMOVE_PLANTS_FROM_BED = gql`
       length
       plantInstances  {
         _id
+        basePlant {
+          _id
+          name
+          image
+          waterReq
+          spacing
+        }
+      }
+    }
+  }
+`;
+
+export const MOVE_PLANT_IN_BED = gql`
+  mutation MovePlantInBed($bedId: ID!, $position: PlantPositionInput!) {
+    movePlantInBed(bedId: $bedId, position: $position) {
+      _id
+      plantInstances {
+        _id
+        x
+        y
         basePlant {
           _id
           name
