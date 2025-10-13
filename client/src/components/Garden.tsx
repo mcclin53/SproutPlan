@@ -135,16 +135,23 @@ export default function Garden() {
         <div className="garden" style={{ position: "relative", width: "100%", height: "100%" }}>
           {beds.map((bed) => (
             <Bed
-              key={bed._id}
+              key={bed._id + (bed.plantInstances?.length ?? 0)}
               bed={bed}
-              onDropPlant={(bedId, plantId) =>
+              onDropPlant={(bedId, plantId) => {
+                const basePlant = plantsData?.plants?.find(p => p._id === plantId);
+
                 addPlantsToBed(bedId, [plantId], (updatedBed) => {
                   console.log("Updated bed from mutation:", updatedBed);
+
                   setDragBeds(prev =>
-                    prev.map(b => (b._id === updatedBed._id ? { ...b, plantInstances: updatedBed.plantInstances } : b))
+                    prev.map(b =>
+                      b._id === updatedBed._id
+                        ? { ...b, plantInstances: updatedBed.plantInstances }
+                        : b
+                    )
                   );
-                })
-              }
+                });
+              }}
               onRemoveBed={() => removeBed(bed._id)}
               moveBed={moveBed}
               movePlantInBed={movePlantInBed}

@@ -66,12 +66,7 @@ const [, drop] = useDrop(() => ({
       const newX = Math.max(0, Math.round(coords.x + delta.x));
       const newY = Math.max(0, Math.round(coords.y + delta.y));
 
-      console.log(
-        "🌿 Moving plant", item.plantInstanceId,
-        "from", coords,
-        "to", { x: newX, y: newY },
-        "Δ", delta
-      );
+      console.log("Moving plant", item.plantInstanceId,"from", coords,"to", { x: newX, y: newY },"Δ", delta);
 
       movePlantInBed(bed._id, item.plantInstanceId, newX, newY);
       return;
