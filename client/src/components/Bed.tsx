@@ -98,10 +98,16 @@ const [, drop] = useDrop(() => ({
   const x = Math.round(clientOffset.x - dropTargetRect.left);
   const y = Math.round(clientOffset.y - dropTargetRect.top);
 
-  console.log("Dropping new plant at local coordinates:", { x, y });
+  if (!item.id) {
+    console.error("❌ Dropped plant is missing an ID:", item);
+    return;
+  }
+
+  console.log("Dropping new plant at local coordinates:", { x, y }, "plantId:", item.id);
 
   onDropPlant(bed._id, item.id, x, y);
 }
+
   },
 }));
 

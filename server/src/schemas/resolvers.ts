@@ -143,32 +143,44 @@ const resolvers: IResolvers = {
     },
 
     addPlantsToBed: async (_, { bedId, basePlantIds }: { bedId: string; basePlantIds: string[] }) => {
-      const bed = await Bed.findById(bedId);
-      if (!bed) throw new Error("Bed not found");
+  const bed = await Bed.findById(bedId);
+  if (!bed) throw new Error("Bed not found");
 
-      basePlantIds.forEach(basePlantId => {
-        const alreadyExists = bed.plants.some(p => p.basePlant.toString() === basePlantId);
-        if (!alreadyExists) {
-          bed.plants.push({ basePlant: basePlantId, x: 0, y: 0 }); // optional: you could set different initial coordinates here
-        }
-      });
-      await bed.save();
+  if (!Array.isArray(bed.plants)) bed.plants = [];
 
-      const populated = await bed.populate({
-        path: "plants.basePlant",
-        select: "_id name image waterReq spacing",
-      });
+  basePlantIds.forEach(basePlantId => {
+    const alreadyExists = bed.plants.some(p => p.basePlant.toString() === basePlantId);
+    if (!alreadyExists) {
+      bed.plants.push({ basePlant: basePlantId, x: 0, y: 0 });
+    }
+  });
 
-      return {
-        ...populated.toObject(),
-        plantInstances: populated.plants.map(p => ({
-          _id: p._id,
-          x: p.x ?? 0,
-          y: p.y ?? 0,
-          basePlant: p.basePlant,
-        })),
-      };
-    },
+  await bed.save();
+
+  const populated = await bed.populate({
+    path: "plants.basePlant",
+    select: "_id name image waterReq spacing",
+  });
+
+  return {
+    _id: bed._id.toString(),
+    width: bed.width,
+    length: bed.length,
+    plantInstances: populated.plants.map(p => ({
+      _id: p._id.toString(),
+      x: p.x ?? 0,
+      y: p.y ?? 0,
+      basePlant: p.basePlant ? {
+        _id: p.basePlant._id.toString(),
+        name: p.basePlant.name,
+        image: p.basePlant.image,
+        waterReq: p.basePlant.waterReq,
+        spacing: p.basePlant.spacing,
+      } : null,
+    })),
+  };
+};
+
 
     removePlantsFromBed: async (_, { bedId, plantInstanceIds }: { bedId: string; plantInstanceIds: string[] }) => {
       const objectIds = plantInstanceIds.map(id => new mongoose.Types.ObjectId(id));
