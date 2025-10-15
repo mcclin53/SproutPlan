@@ -52,7 +52,8 @@ export default function PlantInstanceComponent({
   const imageSrc = failedImages ? `${BASE_URL}/images/placeholder.png` : remote;
 
   return (
-    <div
+    <div 
+      className="plant-wrapper"
       ref={ref}
       style={{
         position: "absolute",
@@ -60,6 +61,8 @@ export default function PlantInstanceComponent({
         left: plantInstance.x,
         opacity: isDraggingPlant ? 0.5 : 1,
         cursor: "move",
+        width: 40,
+        height: 40,
       }}
     >
       <img
@@ -76,17 +79,7 @@ export default function PlantInstanceComponent({
         }}
       />
       <button
-        className="button"
-        style={{
-          background: "#e74c3c",
-          color: "white",
-          border: "none",
-          borderRadius: "4px",
-          padding: "2px 6px",
-          cursor: "pointer",
-          fontSize: "0.8rem",
-          marginLeft: "5px",
-        }}
+        className="remove-plant-button"
         onClick={() => handleRemovePlant(bedId, plantInstance._id)} // Use parent handler
       >
         ❌

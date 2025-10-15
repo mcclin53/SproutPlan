@@ -82,7 +82,7 @@ const typeDefs = gql`
     register(input: ProfileInput!): Auth
     removeProfile: Profile
     createBed(width: Int!, length: Int!): Bed!
-    addPlantsToBed(bedId: ID!, basePlantIds: [ID!]!): Bed
+    addPlantsToBed(bedId: ID!, basePlantIds: [ID!]!, positions: [PositionInput!]!): Bed
     removeBed(bedId:ID!) :Bed
     removePlantsFromBed(bedId: ID!, plantInstanceIds: [ID!]!): Bed
     clearBeds: [Bed!]!

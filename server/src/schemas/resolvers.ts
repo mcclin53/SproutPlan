@@ -142,17 +142,15 @@ const resolvers: IResolvers = {
       };
     },
 
-    addPlantsToBed: async (_, { bedId, basePlantIds }: { bedId: string; basePlantIds: string[] }) => {
+    addPlantsToBed: async ( _, 
+      { bedId, basePlantIds, positions }: { bedId: string; basePlantIds: string[]; positions: { x: number; y: number }[] }
+    ) => {
   const bed = await Bed.findById(bedId);
   if (!bed) throw new Error("Bed not found");
 
-  if (!Array.isArray(bed.plants)) bed.plants = [];
-
-  basePlantIds.forEach(basePlantId => {
-    const alreadyExists = bed.plants.some(p => p.basePlant.toString() === basePlantId);
-    if (!alreadyExists) {
-      bed.plants.push({ basePlant: basePlantId, x: 0, y: 0 });
-    }
+  basePlantIds.forEach((basePlantId, index) => {
+      const pos = positions[index] || { x: 0, y: 0 };
+      bed.plants.push({ basePlant: basePlantId, x: pos.x, y: pos.y, });
   });
 
   await bed.save();
@@ -171,15 +169,15 @@ const resolvers: IResolvers = {
       x: p.x ?? 0,
       y: p.y ?? 0,
       basePlant: p.basePlant ? {
-        _id: p.basePlant._id.toString(),
-        name: p.basePlant.name,
-        image: p.basePlant.image,
-        waterReq: p.basePlant.waterReq,
-        spacing: p.basePlant.spacing,
+        _id: (p.basePlant as any)._id.toString(),
+        name: (p.basePlant as any).name,
+        image: (p.basePlant as any).image,
+        waterReq: (p.basePlant as any).waterReq,
+        spacing: (p.basePlant as any).spacing,
       } : null,
     })),
   };
-};
+},
 
 
     removePlantsFromBed: async (_, { bedId, plantInstanceIds }: { bedId: string; plantInstanceIds: string[] }) => {

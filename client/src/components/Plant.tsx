@@ -14,8 +14,8 @@ interface PlantProps {
 
 export default function Plant({ plant }: PlantProps) {
   const [, drag] = useDrag(() => ({
-    type: "PLANT",
-    item: { id: plant._id, name: plant.name, type: "PLANT" },
+    type: "BASE_PLANT",
+    item: { id: plant._id, name: plant.name, type: "BASE_PLANT" },
   }));
 
   return (

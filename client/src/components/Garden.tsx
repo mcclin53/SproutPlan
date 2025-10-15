@@ -175,14 +175,16 @@ export default function Garden() {
             <Bed
               key={bed._id + (bed.plantInstances?.length ?? 0)}
               bed={bed}
-              onDropPlant={(bedId, plantId, x, y) => {
-                addPlantsToBed(bedId, [plantId], updatedBed => {
+              onAddBasePlantsToBed={(bedId, basePlantIds,positions) => {
+                addPlantsToBed(bedId, basePlantIds, positions, (updatedBed) => {
                   setDragBeds(prev =>
                     prev.map(b => {
                       if (b._id !== updatedBed._id) return b;
                       const mergedPlantInstances = updatedBed.plantInstances.map(sp => {
                         const localPlant = b.plantInstances?.find(lp => lp._id === sp._id);
-                        return localPlant ? { ...sp, x: localPlant.x, y: localPlant.y } : { ...sp, x, y };
+                        const posIndex = basePlantIds.indexOf(sp.basePlant._id);
+                        const pos = positions[posIndex] || { x: sp.x, y: sp.y };
+                        return localPlant ? { ...sp, x: localPlant.x, y: localPlant.y } : { ...sp, x: pos.x, y: pos.y };
                       });
                       return { ...b, plantInstances: mergedPlantInstances };
                     })

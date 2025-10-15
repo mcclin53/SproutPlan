@@ -59,13 +59,15 @@ export const MOVE_BED = gql`
 `;
 
 export const ADD_PLANTS_TO_BED = gql`
-  mutation AddPlantsToBed($bedId: ID!, $basePlantIds: [ID!]!) {
-    addPlantsToBed(bedId: $bedId, basePlantIds: $basePlantIds) {
+  mutation AddPlantsToBed($bedId: ID!, $basePlantIds: [ID!]!, $positions: [PositionInput!]!) {
+    addPlantsToBed(bedId: $bedId, basePlantIds: $basePlantIds, positions: $positions) {
       _id
       width
       length
       plantInstances  {
         _id
+        x
+        y
         basePlant {
           _id
           name

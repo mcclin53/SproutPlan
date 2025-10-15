@@ -103,3 +103,19 @@ body {
   padding: 15px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
+
+.remove-plant-button {
+  position:absolute;
+  bottom: 0;
+  right: 0;
+  width: 12px;
+  height: 12px;
+  font-size: 8px;
+  font-weight: bold;
+  padding: 0;
+  border:rgba(68, 52, 30, 0.897);
+  background-color: rgba(255, 0, 0, 0.8);
+  color: white;
+  cursor: pointer;
+  transform: "translate(25%,25%)";
+}

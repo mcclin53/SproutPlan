@@ -16,29 +16,30 @@ export default function useDragPlant({
 }: UseDragPlantProps) {
   const [{ isDraggingPlant }, drag] = useDrag(() => ({
     type: "PLANT_INSTANCE",
-    item: { plantInstanceId, bedId, type: "PLANT_INSTANCE" },
+    item: { plantInstanceId, bedId },
     collect: (monitor) => ({
       isDraggingPlant: monitor.isDragging(),
     }),
-    end: (item, monitor) => {
-      const delta = monitor.getDifferenceFromInitialOffset();
-      if (!delta) return;
+    end: (_, monitor) => {
+      const clientOffset = monitor.getClientOffset();
+      const bedElement = document.getElementById(`bed-${bedId}`);
+      if (!clientOffset || !bedElement) return;
+
+      const bedRect = bedElement.getBoundingClientRect();
       const coords = getPlantCoordinates(bedId, plantInstanceId);
       if (!coords) return;
 
-      const newX = Math.max(0, Math.round(coords.x + delta.x));
-      const newY = Math.max(0, Math.round(coords.y + delta.y));
+      // Compute new position relative to bed
+      const newX = clientOffset.x - bedRect.left - 20; // 20 = half plant width if needed
+      const newY = clientOffset.y - bedRect.top - 20;
 
-      movePlantInBed(bedId, plantInstanceId, newX, newY);
+      movePlantInBed(bedId, plantInstanceId, Math.max(0, Math.round(newX)), Math.max(0, Math.round(newY)));
     },
   }));
 
-  const ref = useCallback(
-    (node: HTMLElement | null) => {
-      if (node) drag(node);
-    },
-    [drag]
-  );
+  const ref = useCallback((node: HTMLElement | null) => {
+    if (node) drag(node);
+  }, [drag]);
 
   return { ref, isDraggingPlant };
 }

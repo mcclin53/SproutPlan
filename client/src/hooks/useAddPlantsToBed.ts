@@ -48,7 +48,8 @@ export default function useAddPlantsToBed() {
   const addPlantsToBed = async (
     bedId: string,
     basePlantIds: string[],
-    onUpdate?: (updatedBed: any) => void // <-- optional callback
+    positions: { x: number; y: number }[],
+    onUpdate?: (updatedBed: any) => void
   ) => {
       console.log("addPlantsToBed called:", bedId, basePlantIds);
 
@@ -56,14 +57,16 @@ export default function useAddPlantsToBed() {
     console.error("Invalid basePlantIds passed:", basePlantIds);
     return;
   }
+  if (!positions || positions.length !== basePlantIds.length) {
+    console.error("Positions array length must match basePlantIds length");
+    return;
+  }
     try {
       const { data } = await addPlantsToBedMutation({
-        variables: { bedId, basePlantIds },
+        variables: { bedId, basePlantIds, positions },
       });
 
-      if (data?.addPlantsToBed && onUpdate) {
-        onUpdate(data.addPlantsToBed);
-      }
+      if (data?.addPlantsToBed && onUpdate) onUpdate(data.addPlantsToBed);
     } catch (err) {
       console.error("Error adding plants to bed:", err);
     }
