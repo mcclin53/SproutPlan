@@ -5,6 +5,8 @@ import { AuthRequest } from "../utils/auth";
 import { Bed } from "../models/Bed.js";
 import Plant from "../models/Plant.js";
 import mongoose from "mongoose";
+import Sun from "../models/Sun.js";
+import fetch from "node-fetch";
 
 const resolvers: IResolvers = {
   Query: {
@@ -36,6 +38,90 @@ const resolvers: IResolvers = {
       const plants = await Plant.find();
       console.log("Fetched plants:", plants);
       return plants;
+    },
+
+    getSunData: async (_: any, { latitude, longitude }: { latitude: number; longitude: number }) => {
+      const today = new Date().toISOString().split("T")[0];
+
+      // Try to find cached data
+      let sunData = await Sun.findOne({
+        "location.latitude": latitude,
+        "location.longitude": longitude,
+        date: { $gte: new Date(today) },
+      });
+
+      if (!sunData) {
+        try {
+        const url = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&daily=sunrise,sunset,solar_noon,daylight_duration&timezone=auto`;
+
+        const response = await fetch(url);
+        if (!response.ok) throw new Error(`Open-Meteo request failed: ${response.statusText}`);
+
+        const data = await response.json();
+        if (!data.daily?.time?.length || !data.hourly?.time?.length)
+          throw new Error("No solar data returned from API");
+
+        const now = new Date();
+      const times = data.hourly.time.map((t: string) => new Date(t));
+      let closestIndex = 0;
+      let minDiff = Infinity;
+      times.forEach((time: Date, i: number) => {
+        const diff = Math.abs(time.getTime() - now.getTime());
+        if (diff < minDiff) {
+          minDiff = diff;
+          closestIndex = i;
+        }
+      });
+
+      const solarElevation = data.hourly.solar_elevation_angle[closestIndex];
+      const solarAzimuth = data.hourly.solar_azimuth_angle[closestIndex];
+
+        sunData = new Sun({
+          location: { latitude, longitude },
+          date: new Date(data.daily.time[0]),
+          sunrise: new Date(data.daily.sunrise[0]),
+          sunset: new Date(data.daily.sunset[0]),
+          solarNoon: new Date(data.daily.solar_noon[0]),
+          daylightDuration: data.daily.daylight_duration[0],
+          solarElevation,
+          solarAzimuth,
+          updatedAt: new Date(),
+        });
+
+        await sunData.save();
+        } catch (err) {
+        console.error("Failed to fetch sun data:", err);
+        throw new Error("Unable to retrieve solar data at this time");
+      }
+    } else {
+      // Optionally refresh solar angles each time you query
+      try {
+        const url = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&hourly=solar_elevation_angle,solar_azimuth_angle&timezone=auto`;
+        const response = await fetch(url);
+        const data = await response.json();
+
+        const now = new Date();
+        const times = data.hourly.time.map((t: string) => new Date(t));
+        let closestIndex = 0;
+        let minDiff = Infinity;
+        times.forEach((time: Date, i: number) => {
+          const diff = Math.abs(time.getTime() - now.getTime());
+          if (diff < minDiff) {
+            minDiff = diff;
+            closestIndex = i;
+          }
+        });
+
+        sunData.solarElevation = data.hourly.solar_elevation_angle[closestIndex];
+        sunData.solarAzimuth = data.hourly.solar_azimuth_angle[closestIndex];
+        sunData.updatedAt = new Date();
+        await sunData.save();
+      } catch (err) {
+        console.warn("Failed to refresh real-time solar angles:", err);
+        }
+      }
+      
+      return sunData;
     },
   },
 

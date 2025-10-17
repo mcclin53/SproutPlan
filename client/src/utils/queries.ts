@@ -64,3 +64,16 @@ export const GET_PLANTS = gql`
     }
   }
 `;
+
+export const GET_SUN_DATA = gql`
+  query GetSunData($latitude: Float!, $longitude: Float!) {
+    getSunData(latitude: $latitude, longitude: $longitude) {
+      sunrise
+      sunset
+      solarNoon
+      solarElevation
+      solarAzimuth
+      daylightDuration
+    }
+  }
+`;

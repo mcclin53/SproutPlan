@@ -22,6 +22,7 @@ interface Props {
   movePlantInBed: (bedId: string, plantId: string, newX: number, newY: number) => void;
   getPlantCoordinates: (bedId: string, plantId: string) => { x: number; y: number } | undefined;
   handleRemovePlant: (bedId: string, plantInstanceId: string) => void; // Pass down from Garden.tsx
+  sunlightHours?: number;
 }
 
 const BASE_URL = (import.meta.env.VITE_API_URL as string) || "http://localhost:3001";
@@ -32,7 +33,10 @@ export default function PlantInstanceComponent({
   movePlantInBed,
   getPlantCoordinates,
   handleRemovePlant,
+  sunlightHours = 0,
 }: Props) {
+
+  console.log(`${plantInstance.basePlant.name} receives ${sunlightHours}h sunlight`);
   const [failedImages, setFailedImages] = useState(false);
 
   const { ref, isDraggingPlant } = useDragPlant({

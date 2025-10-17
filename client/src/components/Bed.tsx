@@ -5,6 +5,7 @@ import { useMutation, gql } from "@apollo/client";
 import useDragPlant from "../hooks/useDragPlant";
 import PlantInstanceComponent from "./PlantInstance";
 import { MOVE_PLANT_IN_BED } from "../utils/mutations";
+import { useShadow } from "../hooks/useShadow";
 
 interface BedProps {
   bed: {
@@ -22,6 +23,7 @@ interface BedProps {
   movePlantInBed: (bedId: string, plantId: string, newX: number, newY: number) => void;
   getPlantCoordinates: (bedId: string, plantId: string) => { x: number; y: number } | undefined;
   handleRemovePlant: (bedId: string, plantInstanceId: string) => void;
+  sunDirection?: { elevation: number; azimuth: number } | null;
 }
 
 function mergeRefs<T>(...refs: Array<React.Ref<T> | undefined>) {
@@ -38,9 +40,24 @@ function mergeRefs<T>(...refs: Array<React.Ref<T> | undefined>) {
   };
 }
 
-export default function Bed({ bed, onAddBasePlantsToBed, onRemoveBed, moveBed, movePlantInBed, getPlantCoordinates, handleRemovePlant }: BedProps) {
+export default function Bed({ bed, onAddBasePlantsToBed, onRemoveBed, moveBed, movePlantInBed, getPlantCoordinates, handleRemovePlant, sunDirection }: BedProps) {
   const dropRef = useRef<HTMLDivElement>(null)
   const [movePlantInBedMutation] = useMutation(MOVE_PLANT_IN_BED);
+
+  const shadowData = useShadow(
+    {
+      width: bed.width,
+      length: bed.length,
+      plantInstances: bed.plantInstances?.map(p => ({
+        ...p,
+        // convert local bed coordinates to absolute garden coordinates
+        x: bed.x + p.x,
+        y: bed.y + p.y,
+      })) || [],
+    },
+    sunDirection || null,
+    12 // max sun hours
+  );
 
   // Dropping 
 const [, drop] = useDrop(() => ({
@@ -105,6 +122,7 @@ const [, drop] = useDrop(() => ({
             movePlantInBed={movePlantInBed}
             getPlantCoordinates={getPlantCoordinates}
             handleRemovePlant={handleRemovePlant}
+            sunlightHours={shadowData.sunlightHours[plantInstance._id] || 0}
           />
         ))
       ) : (

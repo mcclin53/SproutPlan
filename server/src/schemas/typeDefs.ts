@@ -69,12 +69,31 @@ const typeDefs = gql`
     y: Int!
   }
 
+  type Sun {
+  _id: ID!
+  location: Location!
+  date: String
+  sunrise: String
+  sunset: String
+  solarNoon: String
+  daylightDuration: Int
+  solarElevation: Float
+  solarAzimuth: Float
+  updatedAt: String
+}
+
+type Location {
+  latitude: Float!
+  longitude: Float!
+}
+
   type Query {
     profiles: [Profile]
     profile(profileId: ID!): Profile
     me: Profile
     plants: [Plant!]!
     beds: [Bed!]!
+    getSunData (latitude: Float!, longitude: Float!): Sun
   }
 
   type Mutation {

@@ -13,8 +13,25 @@ import useDragBed from "../hooks/useDragBed";
 import type { DragBed } from "../hooks/useDragBed";
 import { MOVE_PLANT_IN_BED } from "../utils/mutations";
 import useRemovePlantsFromBed from "../hooks/useRemovePlantsFromBed";
+import { useSunData } from "../hooks/useSunData";
 
 export default function Garden() {
+
+  const GARDEN_LAT = 44.7629; // TC latitude
+  const GARDEN_LON = 85.6210; // TC longitude
+  const { data: sunData, loading: sunLoading } = useSunData(GARDEN_LAT, GARDEN_LON);
+  const [sunDirection, setSunDirection] = useState<{ elevation: number; azimuth: number } | null>(null);
+
+  useEffect(() => {
+    if (!sunData) return;
+
+    const elevation = sunData.solarElevation;
+    const azimuth = sunData.solarAzimuth;
+
+    setSunDirection({ elevation, azimuth });
+  }, [sunData]);
+
+
   const { loading: bedsLoading, error: bedsError, data: bedsData } = useQuery(GET_BEDS);
   const { loading: plantsLoading, error: plantsError, data: plantsData } = useQuery(GET_PLANTS);
 
@@ -175,6 +192,7 @@ export default function Garden() {
             <Bed
               key={bed._id + (bed.plantInstances?.length ?? 0)}
               bed={bed}
+              sunDirection={sunDirection}
               onAddBasePlantsToBed={(bedId, basePlantIds,positions) => {
                 addPlantsToBed(bedId, basePlantIds, positions, (updatedBed) => {
                   setDragBeds(prev =>
