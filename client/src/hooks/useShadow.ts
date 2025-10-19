@@ -9,8 +9,7 @@ interface Plant {
   _id: string;
   x: number;
   y: number;
-  width: number;
-  depth: number;
+  canopyRadius: number;
   height: number;
   sunReq: number;
 }
@@ -26,11 +25,22 @@ interface ShadowData {
   shadedPlants: string[];                // plant IDs partially or fully shaded
 }
 
-export const useShadow = (bed: Bed, sunPosition: SunPosition | null, maxSunHours = 12) => {
+export const useShadow = (bed: Bed, sunPosition: SunPosition | null, maxSunHours = 12, timeOfDay?: number) => {
   const [shadowData, setShadowData] = useState<ShadowData>({ sunlightHours: {}, shadedPlants: [] });
 
   useEffect(() => {
     if (!sunPosition || !bed?.plantInstances) return;
+
+    //nighttime check
+    if (sunPosition.elevation <= 0) {
+        setShadowData({
+            sunlightHours: Object.fromEntries(
+                bed.plantInstances.map((p) => [p._id, 0])
+            ),
+            shadedPlants: [],
+        });
+        return;
+    }
 
     const { elevation, azimuth } = sunPosition;
     const radElevation = (elevation * Math.PI) / 180;
@@ -42,13 +52,12 @@ export const useShadow = (bed: Bed, sunPosition: SunPosition | null, maxSunHours
     // Precompute shadow vectors for all plants
     const shadowVectors = bed.plantInstances.map(plant => {
       const shadowLength = plant.height / Math.tan(radElevation); // vertical to horizontal projection
-      const totalLength = shadowLength + plant.depth;             // include canopy depth
+      const totalLength = shadowLength + plant.canopyRadius;             // include canopy radius
       return {
         _id: plant._id,
         x: plant.x,
         y: plant.y,
-        width: plant.width,
-        depth: plant.depth,
+        canopyRadius: plant.canopyRadius,
         shadowEndX: plant.x + Math.cos(radAzimuth) * totalLength,
         shadowEndY: plant.y + Math.sin(radAzimuth) * totalLength,
         shadowLength: totalLength
@@ -76,21 +85,21 @@ export const useShadow = (bed: Bed, sunPosition: SunPosition | null, maxSunHours
           // Compute perpendicular distance from shadow line
           const perpDist = Math.abs(-shadowDirY * dx + shadowDirX * dy);
 
-          // Check if target is within shadow width (canopy width)
-          const shadowWidth = shadowPlant.width / 2;
-          if (perpDist <= shadowWidth) {
+          // Check if target is within shadow width (canopy radius)
+          const shadowWidth = shadowPlant.canopyRadius * 2;
+          if (perpDist <= shadowWidth / 2) {
             // Partial shading: reduce sun proportionally
-            sunHours -= Math.min(sunHours, maxSunHours * 0.5); // reduce 50% for overlap
+            const shadingFactor = 0.5;
+            sunHours -= maxSunHours * shadingFactor;
             if (!shadedPlants.includes(target._id)) shadedPlants.push(target._id);
           }
         }
       });
-
       sunlightHours[target._id] = Math.max(0, sunHours);
     });
 
     setShadowData({ sunlightHours, shadedPlants });
-  }, [bed, sunPosition, maxSunHours]);
+  }, [bed, sunPosition, maxSunHours, timeOfDay]);
 
   return shadowData;
 };

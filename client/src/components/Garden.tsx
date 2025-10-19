@@ -14,6 +14,7 @@ import type { DragBed } from "../hooks/useDragBed";
 import { MOVE_PLANT_IN_BED } from "../utils/mutations";
 import useRemovePlantsFromBed from "../hooks/useRemovePlantsFromBed";
 import { useSunData } from "../hooks/useSunData";
+import { useFastForward } from "../hooks/useFastForward";
 
 export default function Garden() {
 
@@ -22,15 +23,29 @@ export default function Garden() {
   const { data: sunData, loading: sunLoading } = useSunData(GARDEN_LAT, GARDEN_LON);
   const [sunDirection, setSunDirection] = useState<{ elevation: number; azimuth: number } | null>(null);
 
+  const { simulatedDate, isFastForwarding, toggle: toggleFastForward } = useFastForward({
+      initialDate: new Date(new Date().setHours(12, 0, 0, 0)),
+      speed: 200, // 1 simulated hour per 200ms;
+    });
+
   useEffect(() => {
     if (!sunData) return;
 
     const elevation = sunData.solarElevation;
-    const azimuth = sunData.solarAzimuth;
+    const azimuth = sunData.solarAzimuth + 180;
+
+    console.log(
+    "Simulated time:",
+    simulatedDate.toLocaleTimeString(),
+    "| Elevation:",
+    elevation.toFixed(2),
+    "| Azimuth:",
+    azimuth.toFixed(2)
+  );
 
     setSunDirection({ elevation, azimuth });
-  }, [sunData]);
-
+  }, [simulatedDate, sunData]);
+  
 
   const { loading: bedsLoading, error: bedsError, data: bedsData } = useQuery(GET_BEDS);
   const { loading: plantsLoading, error: plantsError, data: plantsData } = useQuery(GET_PLANTS);
@@ -177,6 +192,15 @@ export default function Garden() {
   return (
     <div>
       <DigBed />
+
+      <div style={{ marginBottom: "10px" }}>
+        <button className="button" onClick={toggleFastForward}>
+          {isFastForwarding ? "Pause Fast Forward" : "Fast Forward"}
+        </button>
+        <span style={{ marginLeft: "10px" }}>
+          Simulated time: {simulatedDate.toLocaleString()}
+        </span>
+      </div>
 
       <DndProvider backend={HTML5Backend}>
         <div className="plant-palette">

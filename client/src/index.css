@@ -119,3 +119,9 @@ body {
   cursor: pointer;
   transform: "translate(25%,25%)";
 }
+
+.plant-wrapper {
+  transition: filter 0.5s ease, box-shadow 0.5s ease;
+  will-change: filter, box-shadow;
+  border-radius: 50%;
+}
