@@ -41,20 +41,20 @@ const resolvers: IResolvers = {
       return plants;
     },
 
-    getSunData: async (_: any, { latitude, longitude }: { latitude: number; longitude: number }) => {
-      const today = new Date();
-      const todayDateOnly = today.toISOString().split("T")[0];
+    getSunData: async (_: any, { latitude, longitude, date }: { latitude: number; longitude: number; date? string }) => {
+      const queryDate = date ? new Date(date) : new Date();
+      const dateOnly = new Date(queryDate.toISOString().split("T")[0]);
 
       // Try to find cached data
       let sunData = await Sun.findOne({
         "location.latitude": latitude,
         "location.longitude": longitude,
-        date: new Date(todayDateOnly),
+        date: dateOnly,
       });
 
       if (!sunData) {
-        const times = SunCalc.getTimes(today, latitude, longitude);
-        const position = SunCalc.getPosition(today, latitude, longitude);
+        const times = SunCalc.getTimes(dateOnly, latitude, longitude);
+        const position = SunCalc.getPosition(dateOnly, latitude, longitude);
 
         const solarElevation = (position.altitude * 180) / Math.PI; // radians → degrees
         const solarAzimuth = (position.azimuth * 180) / Math.PI;
@@ -64,7 +64,7 @@ const resolvers: IResolvers = {
 
         sunData = new Sun({
           location: { latitude, longitude },
-          date: new Date(todayDateOnly),
+          date: dateOnly,
           sunrise: times.sunrise,
           sunset: times.sunset,
           solarNoon: times.solarNoon,
@@ -77,7 +77,7 @@ const resolvers: IResolvers = {
         await sunData.save();
       } else {
         // Optionally refresh current solar angles for real-time updates
-        const position = SunCalc.getPosition(today, latitude, longitude);
+        const position = SunCalc.getPosition(dateOnly, latitude, longitude);
         sunData.solarElevation = (position.altitude * 180) / Math.PI;
         sunData.solarAzimuth = (position.azimuth * 180) / Math.PI;
         sunData.updatedAt = new Date();

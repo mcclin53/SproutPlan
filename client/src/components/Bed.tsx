@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { useDrop, useDrag } from "react-dnd";
 import useRemovePlantsFromBed from "../hooks/useRemovePlantsFromBed";
 import { useMutation, gql } from "@apollo/client";
@@ -6,7 +6,7 @@ import useDragPlant from "../hooks/useDragPlant";
 import PlantInstanceComponent from "./PlantInstance";
 import { MOVE_PLANT_IN_BED } from "../utils/mutations";
 import { useShadow } from "../hooks/useShadow";
-import { useGrowPlant } from "../hooks/useGrowPlant";
+// import { useGrowPlant } from "../hooks/useGrowPlant";
 
 interface BedProps {
   bed: {
@@ -28,14 +28,14 @@ interface BedProps {
 }
 
 function mergeRefs<T>(...refs: Array<React.Ref<T> | undefined>) {
-  return (node: T | null) => {
+  return (node: T) => {
     refs.forEach(ref => {
       if (!ref) return;
       if (typeof ref === "function") {
         ref(node);
       } else {
         // @ts-ignore
-        (ref as React.MutableRefObject<T | null>).current = node;
+        ref.current = node;
       }
     });
   };
@@ -45,8 +45,8 @@ export default function Bed({ bed, onAddBasePlantsToBed, onRemoveBed, moveBed, m
   const dropRef = useRef<HTMLDivElement>(null)
   const [movePlantInBedMutation] = useMutation(MOVE_PLANT_IN_BED);
 
-  const shadowData = useShadow(
-    {
+  const memoizedBed = useMemo(
+    () => ({
       width: bed.width,
       length: bed.length,
       plantInstances: bed.plantInstances?.map(p => ({
@@ -55,17 +55,18 @@ export default function Bed({ bed, onAddBasePlantsToBed, onRemoveBed, moveBed, m
         x: bed.x + p.x,
         y: bed.y + p.y,
       })) || [],
-    },
-    sunDirection || null,
-    12 // max sun hours
+    }),
+    [bed.width, bed.length, bed.plantInstances, bed.x, bed.y]
   );
 
-  const grownPlants = useGrowPlant(bed.plantInstances || [], shadowData, { simulateMidnight: true });
+  const shadowData = useShadow(memoizedBed, sunDirection || null, 12);
 
-  const displayedPlants = (bed.plantInstances || []).map((p) => {
-    const grown = grownPlants.find((gp) => gp._id === p._id);
-    return grown ? { ...p, ...grown } : p;
-  });
+  // const grownPlants = useGrowPlant(bed.plantInstances, shadowData, { simulateMidnight: true });
+
+  // const displayedPlants = (bed.plantInstances || []).map((p) => {
+  //   const grown = grownPlants.find((gp) => gp._id === p._id);
+  //   return grown ? { ...p, ...grown } : p;
+  // });
 
   // Dropping 
 const [, drop] = useDrop(() => ({
@@ -99,6 +100,8 @@ const [, drop] = useDrop(() => ({
       isDragging: monitor.isDragging(),
     }),
   }));
+  
+  const plantInstances = bed?.plantInstances || [];
 
   return (
     <div
@@ -119,8 +122,10 @@ const [, drop] = useDrop(() => ({
         className="bed-inner"
         style={{ position: "relative", width: "100%", height: "100%" }}
       >
-      {displayedPlants.length > 0 ? (
-        displayedPlants.map((plantInstance) => (
+      {plantInstances.length > 0 ? (
+        plantInstances.map((plantInstance) => (
+        //   { const grown = grownPlants.find((gp) => gp._id === plantInstance._id);
+        // }
           <PlantInstanceComponent
             key={plantInstance._id}
             plantInstance={plantInstance}
@@ -129,7 +134,6 @@ const [, drop] = useDrop(() => ({
             getPlantCoordinates={getPlantCoordinates}
             handleRemovePlant={handleRemovePlant}
             sunlightHours={shadowData.sunlightHours[plantInstance._id] || 0}
-            sunDirection={sunDirection as { elevation: number; azimuth: number } | null}
           />
         ))
       ) : (

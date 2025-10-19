@@ -93,7 +93,7 @@ type Location {
     me: Profile
     plants: [Plant!]!
     beds: [Bed!]!
-    getSunData (latitude: Float!, longitude: Float!): Sun
+    getSunData (latitude: Float!, longitude: Float!, date: String): Sun
   }
 
   type Mutation {

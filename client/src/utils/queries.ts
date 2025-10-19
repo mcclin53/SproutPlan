@@ -66,8 +66,8 @@ export const GET_PLANTS = gql`
 `;
 
 export const GET_SUN_DATA = gql`
-  query GetSunData($latitude: Float!, $longitude: Float!) {
-    getSunData(latitude: $latitude, longitude: $longitude) {
+  query GetSunData($latitude: Float!, $longitude: Float!, $date: String) {
+    getSunData(latitude: $latitude, longitude: $longitude, date: $date) {
       sunrise
       sunset
       solarNoon

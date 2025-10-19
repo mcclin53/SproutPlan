@@ -25,21 +25,45 @@ interface ShadowData {
   shadedPlants: string[];                // plant IDs partially or fully shaded
 }
 
-export const useShadow = (bed: Bed, sunPosition: SunPosition | null, maxSunHours = 12, timeOfDay?: number) => {
-  const [shadowData, setShadowData] = useState<ShadowData>({ sunlightHours: {}, shadedPlants: [] });
+export const useShadow = (
+  bed: Bed,
+  sunPosition: SunPosition | null,
+  maxSunHours = 12,
+  timeOfDay?: number
+) => {
+    console.log("[Shadow Debug] Hook running:", { sunPosition, plantCount: bed?.plantInstances.length });
+    
+  const [shadowData, setShadowData] = useState<ShadowData>({
+    sunlightHours: {},
+    shadedPlants: [],
+  });
 
   useEffect(() => {
+    console.log("[Shadow Debug] Hook running:", { sunPosition, plantCount: bed?.plantInstances?.length });
     if (!sunPosition || !bed?.plantInstances) return;
 
-    //nighttime check
+    console.log(
+      `[Shadow Debug] Sun position → elevation: ${sunPosition.elevation.toFixed(
+        2
+      )}, azimuth: ${sunPosition.azimuth.toFixed(2)}`
+    );
+    console.log(
+      `[Shadow Debug] Bed size: ${bed.width}×${bed.length}, Plants: ${
+        bed.plantInstances.length
+      }`
+    );
+
+    // Nighttime
     if (sunPosition.elevation <= 0) {
-        setShadowData({
-            sunlightHours: Object.fromEntries(
-                bed.plantInstances.map((p) => [p._id, 0])
-            ),
-            shadedPlants: [],
-        });
-        return;
+      const sunlightHours = Object.fromEntries(
+        bed.plantInstances.map((p) => {
+          console.log(`[Shadow Debug] ${p._id} receives 0h sunlight (nighttime)`);
+          return [p._id, 0];
+        })
+      );
+
+      setShadowData({ sunlightHours, shadedPlants: [] });
+      return;
     }
 
     const { elevation, azimuth } = sunPosition;
@@ -50,9 +74,9 @@ export const useShadow = (bed: Bed, sunPosition: SunPosition | null, maxSunHours
     const shadedPlants: string[] = [];
 
     // Precompute shadow vectors for all plants
-    const shadowVectors = bed.plantInstances.map(plant => {
+    const shadowVectors = bed.plantInstances.map((plant) => {
       const shadowLength = plant.height / Math.tan(radElevation); // vertical to horizontal projection
-      const totalLength = shadowLength + plant.canopyRadius;             // include canopy radius
+      const totalLength = shadowLength + plant.canopyRadius; // include canopy radius
       return {
         _id: plant._id,
         x: plant.x,
@@ -60,15 +84,15 @@ export const useShadow = (bed: Bed, sunPosition: SunPosition | null, maxSunHours
         canopyRadius: plant.canopyRadius,
         shadowEndX: plant.x + Math.cos(radAzimuth) * totalLength,
         shadowEndY: plant.y + Math.sin(radAzimuth) * totalLength,
-        shadowLength: totalLength
+        shadowLength: totalLength,
       };
     });
 
     // Compute sunlight per plant
-    bed.plantInstances.forEach(target => {
+    bed.plantInstances.forEach((target) => {
       let sunHours = maxSunHours;
 
-      shadowVectors.forEach(shadowPlant => {
+      shadowVectors.forEach((shadowPlant) => {
         if (shadowPlant._id === target._id) return;
 
         // Vector from shadow plant to target plant
@@ -95,10 +119,19 @@ export const useShadow = (bed: Bed, sunPosition: SunPosition | null, maxSunHours
           }
         }
       });
+
       sunlightHours[target._id] = Math.max(0, sunHours);
     });
 
     setShadowData({ sunlightHours, shadedPlants });
+
+    // Log sunlight per plant
+    Object.entries(sunlightHours).forEach(([plantId, hours]) => {
+      console.log(`[Shadow Debug] ${plantId} receives ${hours.toFixed(2)}h sunlight`);
+    });
+
+    // Optional: log shadow vectors
+    console.log("[Shadow Debug] Shadow vectors:", shadowVectors);
   }, [bed, sunPosition, maxSunHours, timeOfDay]);
 
   return shadowData;
