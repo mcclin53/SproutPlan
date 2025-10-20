@@ -256,6 +256,7 @@ export default function Garden() {
               movePlantInBed={movePlantInBed}
               getPlantCoordinates={getPlantCoordinates}
               handleRemovePlant={handleRemovePlant}
+              simulatedDate={localSimulatedDate}
             />
           ))}
         </div>

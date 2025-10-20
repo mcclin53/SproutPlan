@@ -16,6 +16,7 @@ interface BedProps {
     plantInstances?: any[];
     x: number;
     y: number;
+    
   };
   onAddBasePlantsToBed: ( bedId: string, basePlantIds: string[], positions: { x: number; y: number }[], onUpdate?: (updatedBed: any) => void) => void;
   // onDropPlant: (bedId: string, plantInstanceId: string, positions: { x: number, y: number}[], onUpdate?: (updatedBed: any) => void) => void;
@@ -25,6 +26,7 @@ interface BedProps {
   getPlantCoordinates: (bedId: string, plantId: string) => { x: number; y: number } | undefined;
   handleRemovePlant: (bedId: string, plantInstanceId: string) => void;
   sunDirection?: { elevation: number; azimuth: number } | null;
+  simulatedDate: Date;
 }
 
 function mergeRefs<T>(...refs: Array<React.Ref<T> | undefined>) {
@@ -41,7 +43,7 @@ function mergeRefs<T>(...refs: Array<React.Ref<T> | undefined>) {
   };
 }
 
-export default function Bed({ bed, onAddBasePlantsToBed, onRemoveBed, moveBed, movePlantInBed, getPlantCoordinates, handleRemovePlant, sunDirection }: BedProps) {
+export default function Bed({ bed, onAddBasePlantsToBed, onRemoveBed, moveBed, movePlantInBed, getPlantCoordinates, handleRemovePlant, sunDirection, simulatedDate }: BedProps) {
   const dropRef = useRef<HTMLDivElement>(null)
   const [movePlantInBedMutation] = useMutation(MOVE_PLANT_IN_BED);
 
@@ -59,7 +61,7 @@ export default function Bed({ bed, onAddBasePlantsToBed, onRemoveBed, moveBed, m
     [bed.width, bed.length, bed.plantInstances, bed.x, bed.y]
   );
 
-  const shadowData = useShadow(memoizedBed, sunDirection || null, 12);
+  const shadowData = useShadow(memoizedBed, sunDirection || null, simulatedDate, 12);
 
   // const grownPlants = useGrowPlant(bed.plantInstances, shadowData, { simulateMidnight: true });
 
