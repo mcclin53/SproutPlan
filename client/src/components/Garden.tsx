@@ -16,68 +16,55 @@ import useRemovePlantsFromBed from "../hooks/useRemovePlantsFromBed";
 import { useSunData } from "../hooks/useSunData";
 import { useFastForward } from "../hooks/useFastForward";
 import SunCalc from "suncalc";
+import { useLocalDate } from "../hooks/useLocalDate";
 
 export default function Garden() {
 
   const GARDEN_LAT = 44.7629; // TC latitude
-  const GARDEN_LON = 85.6210; // TC longitude
+  const GARDEN_LON = -85.6210; // TC longitude
 
   const { simulatedDate, isFastForwarding, toggle: toggleFastForward } = useFastForward({
-      initialDate: new Date(new Date().setHours(12, 0, 0, 0)),
+      initialDate: new Date(),
       speed: 200, // 1 simulated hour per 200ms;
     });
 
-  const [sunDirection, setSunDirection] = useState<{ elevation: number; azimuth: number } | null>(null);
+  const localSimulatedDate = useLocalDate({ simulatedDate });
 
+  const [sunDirection, setSunDirection] = useState<{ elevation: number; azimuth: number } | null>(null);
   const lastLoggedHourRef = useRef<number | null>(null); 
   
   useEffect(() => {
-  // Adjust simulatedDate to local time
-    const localDate = new Date(simulatedDate.getTime() - simulatedDate.getTimezoneOffset() * 60000);
-
-    // Get sunrise and sunset times for this date
-    const times = SunCalc.getTimes(localDate, GARDEN_LAT, GARDEN_LON);
+    const times = SunCalc.getTimes(localSimulatedDate, GARDEN_LAT, GARDEN_LON);
     const sunrise = times.sunrise;
     const sunset = times.sunset;
 
     let elevation = 0;
     let azimuth = 0;
 
-    // If daytime, compute solar position
-    if (localDate >= sunrise && localDate <= sunset) {
-      const sunPos = SunCalc.getPosition(localDate, GARDEN_LAT, GARDEN_LON);
-      elevation = sunPos.altitude * 180 / Math.PI;
-      azimuth = ((sunPos.azimuth * 180) / Math.PI + 180) % 360;
-    } else {
-      // Nighttime: elevation stays 0
-      elevation = 0;
-      azimuth = 0;
-    }
-
-    const isDaytime = localDate >= sunrise && localDate <= sunset;
-
-    if (isDaytime) {
-      const sunPos = SunCalc.getPosition(localDate, GARDEN_LAT, GARDEN_LON);
+    if (localSimulatedDate >= sunrise && localSimulatedDate <= sunset) {
+      const sunPos = SunCalc.getPosition(localSimulatedDate, GARDEN_LAT, GARDEN_LON);
       elevation = (sunPos.altitude * 180) / Math.PI;
       azimuth = ((sunPos.azimuth * 180) / Math.PI + 180) % 360;
     }
 
     setSunDirection({ elevation, azimuth });
 
-    const currentHour = localDate.getHours();
+    // log once per simulated hour
+    const currentHour = localSimulatedDate.getHours();
     if (lastLoggedHourRef.current !== currentHour) {
       lastLoggedHourRef.current = currentHour;
 
       console.log(
-        "Simulated time:", simulatedDate.toLocaleTimeString(),
+        "[Simulated Time]",
+        simulatedDate.toLocaleTimeString(),
         "| Elevation:", elevation.toFixed(2),
         "| Azimuth:", azimuth.toFixed(2),
         "| Sunrise:", sunrise.toLocaleTimeString(),
         "| Sunset:", sunset.toLocaleTimeString()
       );
     }
-  }, [simulatedDate]);
-  
+  }, [localSimulatedDate, simulatedDate]);
+
   const { loading: bedsLoading, error: bedsError, data: bedsData } = useQuery(GET_BEDS);
   const { loading: plantsLoading, error: plantsError, data: plantsData } = useQuery(GET_PLANTS);
 
