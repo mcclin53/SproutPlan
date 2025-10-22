@@ -1,5 +1,7 @@
 import React, { useState } from "react";
 import useDragPlant from "../hooks/useDragPlant";
+import { useShadow } from "../hooks/useShadow";
+import { useGrowPlant } from "../hooks/useGrowPlant";
 
 interface BasePlant {
   _id: string;
@@ -7,6 +9,9 @@ interface BasePlant {
   image?: string;
   waterReq?: string;
   spacing?: number;
+  sunReq: number;
+  baseGrowthRate: number;
+  maxHeight: number;
 }
 
 interface PlantInstance {
@@ -14,6 +19,8 @@ interface PlantInstance {
   basePlant: BasePlant;
   x: number;
   y: number;
+  height?: number;
+  canopyRadius?: number;
 }
 
 interface Props {
@@ -21,9 +28,9 @@ interface Props {
   bedId: string;
   movePlantInBed: (bedId: string, plantId: string, newX: number, newY: number) => void;
   getPlantCoordinates: (bedId: string, plantId: string) => { x: number; y: number } | undefined;
-  handleRemovePlant: (bedId: string, plantInstanceId: string) => void; // Pass down from Garden.tsx
-  sunlightHours?: number;
+  handleRemovePlant: (bedId: string, plantInstanceId: string) => void;
   sunDirection?: { azimuth: number; elevation: number } | null;
+  simulatedDate?: Date;
 }
 
 const BASE_URL = (import.meta.env.VITE_API_URL as string) || "http://localhost:3001";
@@ -34,12 +41,9 @@ export default function PlantInstanceComponent({
   movePlantInBed,
   getPlantCoordinates,
   handleRemovePlant,
-  sunlightHours = 0,
   sunDirection,
-
+  simulatedDate,
 }: Props) {
-
-  console.log(`${plantInstance.basePlant.name} receives ${sunlightHours}h sunlight`);
   const [failedImages, setFailedImages] = useState(false);
 
   const { ref, isDraggingPlant } = useDragPlant({
@@ -48,6 +52,22 @@ export default function PlantInstanceComponent({
     movePlantInBed,
     getPlantCoordinates,
   });
+
+  // Convert PlantInstance -> SceneObject for hooks
+  const sceneObject = {
+    _id: plantInstance._id,
+    type: "plant" as const,
+    basePlantId: plantInstance.basePlant._id,
+    ...plantInstance.basePlant, // name, sunReq, baseGrowthRate, maxHeight
+    x: plantInstance.x,
+    y: plantInstance.y,
+    height: plantInstance.height ?? 0,
+    canopyRadius: plantInstance.canopyRadius ?? 0,
+  };
+
+  // Shadow and growth calculation
+  const shadowData = useShadow([sceneObject], sunDirection ?? null);
+  const grownPlant = useGrowPlant([sceneObject], shadowData, { simulateMidnight: true })[0];
 
   const imgField = plantInstance.basePlant.image;
   const remote =
@@ -58,33 +78,19 @@ export default function PlantInstanceComponent({
       : `${BASE_URL}/images/placeholder.png`;
   const imageSrc = failedImages ? `${BASE_URL}/images/placeholder.png` : remote;
 
-  const azimuth = sunDirection?.azimuth ?? 180; // Default: south
-  const elevation = sunDirection?.elevation ?? 45; // Default: mid-sky
-  const lightIntensity = Math.max(0, Math.min(1, elevation / 90)); // normalize 0–1
-  const gradientAngle = (450 - azimuth) % 360;// Convert azimuth to CSS gradient angle
+  const azimuth = sunDirection?.azimuth ?? 180; // Default south
+  const elevation = sunDirection?.elevation ?? 45; // Default mid-sky
+  const lightIntensity = Math.max(0, Math.min(1, elevation / 90));
+  const gradientAngle = (450 - azimuth) % 360;
 
-  const shadowDistance = (1 - lightIntensity) * 15; // lower sun = longer shadow
+  const shadowDistance = (1 - lightIntensity) * 15;
   const shadowX = Math.cos((azimuth * Math.PI) / 180) * shadowDistance;
   const shadowY = Math.sin((azimuth * Math.PI) / 180) * shadowDistance;
-  const shadowBlur = 15 * (1 - lightIntensity) + 5; // blur varies with sun height
+  const shadowBlur = 15 * (1 - lightIntensity) + 5;
   const shadowColor = `rgba(0,0,0,${0.3 * (1 - lightIntensity)})`;
 
-  // const lightStyle: React.CSSProperties = {
-  //   filter: `brightness(${0.6 + lightIntensity * 0.8})`,
-  //   background: `
-  //     linear-gradient(${gradientAngle}deg, rgba(255,255,200,${0.3 * lightIntensity}) 0%, transparent 70%)
-  //   `,
-  //   boxShadow: `
-  //     ${Math.cos((azimuth * Math.PI) / 180) * 10}px 
-  //     ${Math.sin((azimuth * Math.PI) / 180) * 10}px 
-  //     20px rgba(255, 255, 150, ${0.3 * lightIntensity})
-  //   `,
-  //   borderRadius: "50%",
-  //   transition: "all 0.5s ease-in-out",
-  // };
-
   return (
-    <div 
+    <div
       className="plant-wrapper"
       ref={ref}
       style={{
@@ -100,15 +106,15 @@ export default function PlantInstanceComponent({
       <img
         src={imageSrc}
         alt={plantInstance.basePlant.name}
-        title={plantInstance.basePlant.name}
-        style={{ 
-          width: 40, 
-          height: 40, 
+        title={`${plantInstance.basePlant.name} (${grownPlant?.height?.toFixed(1)}h)`}
+        style={{
+          width: 40,
+          height: 40,
           filter: `brightness(${0.6 + lightIntensity * 0.8})`,
           boxShadow: `${shadowX}px ${shadowY}px ${shadowBlur}px ${shadowColor}`,
-          transition: "filter 0.5s ease-in-out",
+          transition: "filter 0.5s ease-in-out, box-shadow 0.5s ease-in-out",
           borderRadius: "50%",
-         }}
+        }}
         onError={(e) => {
           setFailedImages(true);
           const target = e.target as HTMLImageElement;
@@ -132,7 +138,7 @@ export default function PlantInstanceComponent({
       />
       <button
         className="remove-plant-button"
-        onClick={() => handleRemovePlant(bedId, plantInstance._id)} // Use parent handler
+        onClick={() => handleRemovePlant(bedId, plantInstance._id)}
       >
         ❌
       </button>

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 
 interface Plant {
   _id: string;
@@ -28,11 +28,28 @@ export const useGrowPlant = (
 ) => {
   const [grownPlants, setGrownPlants] = useState<Plant[]>(plants);
 
+  const lastUpdateRef = useRef<number>(Date.now());
+  const lastDayRef = useRef<string>(new Date().toDateString());
+
   useEffect(() => {
     if (!shadowData || !plants?.length) return;
 
+    const simulatedDate = new Date();
+
+    // Reset daily growth counters at start of a new day
+    const currentDay = simulatedDate.toDateString();
+    if (lastDayRef.current !== currentDay) {
+      lastDayRef.current = currentDay;
+      lastUpdateRef.current = simulatedDate.getTime();
+    }
+
+        // Calculate time elapsed since last update in hours
+    const now = simulatedDate.getTime();
+    const deltaHours = (now - lastUpdateRef.current) / (1000 * 60 * 60);
+    lastUpdateRef.current = now;
+
     // trigger growth once a day at midnight
-    if (options.simulateMidnight && new Date().getHours() !== 0) return;
+    if (options.simulateMidnight && simulatedDate.getHours() !== 0) return;
 
     const newPlants = plants.map((plant) => {
       const sunlightHours = shadowData.sunlightHours[plant._id] ?? 0;
@@ -41,10 +58,8 @@ export const useGrowPlant = (
       const baseGrowthRate = plant.baseGrowthRate ?? 0;
       const adjustedGrowthRate = baseGrowthRate * Math.min(1, sunlightRatio);
 
-      const newGrowthStage = Math.min(
-        1,
-        (plant.growthStage ?? 0) + adjustedGrowthRate / (plant.maturityDays ?? 1)
-      );
+      const growthProgress = (adjustedGrowthRate * deltaHours) / (plant.maturityDays ?? 1);
+      const newGrowthStage = Math.min(1, (plant.growthStage ?? 0) + growthProgress);
 
       console.log(
         `${plant.name}: baseRate=${baseGrowthRate.toFixed(4)}, adjustedRate=${adjustedGrowthRate.toFixed(4)}, sunlight=${sunlightHours}/${plant.sunReq ?? 1}`

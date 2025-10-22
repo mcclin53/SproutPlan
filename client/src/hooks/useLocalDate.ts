@@ -12,7 +12,7 @@ export function useLocalDate({
   // Initialize with either the simulated date (converted to local) or now
   const [localDate, setLocalDate] = useState(() =>
     simulatedDate ? new Date(simulatedDate) : new Date()
-);
+  );
 
   // Keep local date in sync with simulated date
   useEffect(() => {

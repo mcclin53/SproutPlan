@@ -13,22 +13,16 @@ import useDragBed from "../hooks/useDragBed";
 import type { DragBed } from "../hooks/useDragBed";
 import { MOVE_PLANT_IN_BED } from "../utils/mutations";
 import useRemovePlantsFromBed from "../hooks/useRemovePlantsFromBed";
-import { useSunData } from "../hooks/useSunData";
-import { useFastForward } from "../hooks/useFastForward";
 import SunCalc from "suncalc";
-import { useLocalDate } from "../hooks/useLocalDate";
+import { useShadow } from "../hooks/useShadow";
+import { TimeController } from "./TimeController";
 
 export default function Garden() {
 
   const GARDEN_LAT = 44.7629; // TC latitude
   const GARDEN_LON = -85.6210; // TC longitude
 
-  const { simulatedDate, isFastForwarding, toggle: toggleFastForward } = useFastForward({
-      initialDate: new Date(),
-      speed: 200, // 1 simulated hour per 200ms;
-    });
-
-  const localSimulatedDate = useLocalDate({ simulatedDate });
+  const [localSimulatedDate, setLocalSimulatedDate] = useState(new Date());
 
   const [sunDirection, setSunDirection] = useState<{ elevation: number; azimuth: number } | null>(null);
   const lastLoggedHourRef = useRef<number | null>(null); 
@@ -56,14 +50,14 @@ export default function Garden() {
 
       console.log(
         "[Simulated Time]",
-        simulatedDate.toLocaleTimeString(),
+        localSimulatedDate.toLocaleTimeString(),
         "| Elevation:", elevation.toFixed(2),
         "| Azimuth:", azimuth.toFixed(2),
         "| Sunrise:", sunrise.toLocaleTimeString(),
         "| Sunset:", sunset.toLocaleTimeString()
       );
     }
-  }, [localSimulatedDate, simulatedDate]);
+  }, [localSimulatedDate]);
 
   const { loading: bedsLoading, error: bedsError, data: bedsData } = useQuery(GET_BEDS);
   const { loading: plantsLoading, error: plantsError, data: plantsData } = useQuery(GET_PLANTS);
@@ -201,6 +195,19 @@ export default function Garden() {
     setBeds(dragBeds);
   }, [dragBeds]);
 
+  const sceneObjects = dragBeds.flatMap(bed =>
+    (bed.plantInstances || []).map(p => ({
+      _id: p._id,
+      type: "plant" as const,
+      x: bed.x + (p.x ?? 0),
+      y: bed.y + (p.y ?? 0),
+      height: p.height ?? 0,
+      canopyRadius: p.canopyRadius ?? 0,
+    }))
+  );
+
+  const shadowData = useShadow(sceneObjects, sunDirection);
+
   if (bedsLoading || plantsLoading) return <p>Loading garden...</p>;
   if (bedsError) return <p>Error loading beds: {bedsError.message}</p>;
   if (plantsError) return <p>Error loading plants: {plantsError.message}</p>;
@@ -211,14 +218,11 @@ export default function Garden() {
     <div>
       <DigBed />
 
-      <div style={{ marginBottom: "10px" }}>
-        <button className="button" onClick={toggleFastForward}>
-          {isFastForwarding ? "Pause Fast Forward" : "Fast Forward"}
-        </button>
-        <span style={{ marginLeft: "10px" }}>
-          Simulated time: {simulatedDate.toLocaleString()}
-        </span>
-      </div>
+      <TimeController
+        initialDate={new Date()}
+        speed={200}
+        onDateChange={(date) => setLocalSimulatedDate(date)}
+      />
 
       <DndProvider backend={HTML5Backend}>
         <div className="plant-palette">
@@ -235,6 +239,7 @@ export default function Garden() {
               key={bed._id + (bed.plantInstances?.length ?? 0)}
               bed={bed}
               sunDirection={sunDirection}
+              shadowData={shadowData}
               onAddBasePlantsToBed={(bedId, basePlantIds,positions) => {
                 addPlantsToBed(bedId, basePlantIds, positions, (updatedBed) => {
                   setDragBeds(prev =>
@@ -256,7 +261,6 @@ export default function Garden() {
               movePlantInBed={movePlantInBed}
               getPlantCoordinates={getPlantCoordinates}
               handleRemovePlant={handleRemovePlant}
-              simulatedDate={localSimulatedDate}
             />
           ))}
         </div>

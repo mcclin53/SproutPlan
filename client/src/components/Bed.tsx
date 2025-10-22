@@ -5,8 +5,7 @@ import { useMutation, gql } from "@apollo/client";
 import useDragPlant from "../hooks/useDragPlant";
 import PlantInstanceComponent from "./PlantInstance";
 import { MOVE_PLANT_IN_BED } from "../utils/mutations";
-import { useShadow } from "../hooks/useShadow";
-// import { useGrowPlant } from "../hooks/useGrowPlant";
+import { motion } from "framer-motion";
 
 interface BedProps {
   bed: {
@@ -26,7 +25,6 @@ interface BedProps {
   getPlantCoordinates: (bedId: string, plantId: string) => { x: number; y: number } | undefined;
   handleRemovePlant: (bedId: string, plantInstanceId: string) => void;
   sunDirection?: { elevation: number; azimuth: number } | null;
-  simulatedDate: Date;
 }
 
 function mergeRefs<T>(...refs: Array<React.Ref<T> | undefined>) {
@@ -43,32 +41,9 @@ function mergeRefs<T>(...refs: Array<React.Ref<T> | undefined>) {
   };
 }
 
-export default function Bed({ bed, onAddBasePlantsToBed, onRemoveBed, moveBed, movePlantInBed, getPlantCoordinates, handleRemovePlant, sunDirection, simulatedDate }: BedProps) {
+export default function Bed({ bed, onAddBasePlantsToBed, onRemoveBed, moveBed, movePlantInBed, getPlantCoordinates, handleRemovePlant, sunDirection }: BedProps) {
   const dropRef = useRef<HTMLDivElement>(null)
   const [movePlantInBedMutation] = useMutation(MOVE_PLANT_IN_BED);
-
-  const memoizedBed = useMemo(
-    () => ({
-      width: bed.width,
-      length: bed.length,
-      plantInstances: bed.plantInstances?.map(p => ({
-        ...p,
-        // convert local bed coordinates to absolute garden coordinates
-        x: bed.x + p.x,
-        y: bed.y + p.y,
-      })) || [],
-    }),
-    [bed.width, bed.length, bed.plantInstances, bed.x, bed.y]
-  );
-
-  const shadowData = useShadow(memoizedBed, sunDirection || null, simulatedDate, 12);
-
-  // const grownPlants = useGrowPlant(bed.plantInstances, shadowData, { simulateMidnight: true });
-
-  // const displayedPlants = (bed.plantInstances || []).map((p) => {
-  //   const grown = grownPlants.find((gp) => gp._id === p._id);
-  //   return grown ? { ...p, ...grown } : p;
-  // });
 
   // Dropping 
 const [, drop] = useDrop(() => ({
@@ -126,8 +101,6 @@ const [, drop] = useDrop(() => ({
       >
       {plantInstances.length > 0 ? (
         plantInstances.map((plantInstance) => (
-        //   { const grown = grownPlants.find((gp) => gp._id === plantInstance._id);
-        // }
           <PlantInstanceComponent
             key={plantInstance._id}
             plantInstance={plantInstance}
@@ -135,7 +108,7 @@ const [, drop] = useDrop(() => ({
             movePlantInBed={movePlantInBed}
             getPlantCoordinates={getPlantCoordinates}
             handleRemovePlant={handleRemovePlant}
-            sunlightHours={shadowData.sunlightHours[plantInstance._id] || 0}
+            sunlightHours={plantInstance.sunlightHours || 0}
           />
         ))
       ) : (

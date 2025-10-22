@@ -15,111 +15,121 @@ interface Plant {
   sunReq: number;
 }
 
-interface Bed {
-  width: number;
-  length: number;
-  plantInstances: Plant[];
+interface SceneObject {
+  _id: string;
+  type: "plant" | "tree" | "structure";
+  x: number;
+  y: number;
+  height: number;
+  canopyRadius?: number;
+  width?: number;
+  depth?: number;
+}
+
+interface ShadowVector {
+  _id: string;
+  x: number;
+  y: number;
+  shadowEndX: number;
+  shadowEndY: number;
+  shadowLength: number;
+  canopyRadius?: number;
+  width?: number;
+  depth?: number;
 }
 
 interface ShadowData {
-  sunlightHours: Record<string, number>; // plantId -> cumulative hours
-  shadedPlants: string[];                // partially or fully shaded plants
+  sunlightHours: Record<string, number>;
+  shadedPlants: string[];
+  shadowVectors: ShadowVector[];
 }
 
 export const useShadow = (
-  bed: Bed,
-  sunPosition: SunPosition | null,
-  simulatedDate: Date,
-  maxSunHours = 12
+  sceneObjects: SceneObject[],
+  sunPosition: SunPosition | null
 ) => {
   const [shadowData, setShadowData] = useState<ShadowData>({
     sunlightHours: {},
     shadedPlants: [],
+    shadowVectors: [],
   });
 
-  const lastUpdateRef = useRef<number>(simulatedDate.getTime());
-  const lastDayRef = useRef<string>(simulatedDate.toDateString());
-
   useEffect(() => {
-    if (!sunPosition || !bed?.plantInstances) return;
-
-    // Reset daily sunlight at midnight
-    const currentDay = simulatedDate.toDateString();
-    if (lastDayRef.current !== currentDay) {
-      lastDayRef.current = currentDay;
-      setShadowData({ sunlightHours: {}, shadedPlants: [] });
-      lastUpdateRef.current = simulatedDate.getTime(); // reset reference
-    }
-
-    // Calculate elapsed simulated time in hours since last tick
-    const now = simulatedDate.getTime();
-    const deltaHours = (now - lastUpdateRef.current) / (1000 * 60 * 60);
-    lastUpdateRef.current = now;
-
-    // Skip accumulation if sun is below horizon
-    if (sunPosition.elevation <= 0) return;
+    if (!sunPosition) return;
 
     const radElevation = (sunPosition.elevation * Math.PI) / 180;
     const radAzimuth = (sunPosition.azimuth * Math.PI) / 180;
 
-    // Precompute shadow vectors
-    const shadowVectors = bed.plantInstances.map((plant) => {
-      const shadowLength = plant.height / Math.tan(radElevation);
-      const totalLength = shadowLength + plant.canopyRadius;
-      return {
-        _id: plant._id,
-        x: plant.x,
-        y: plant.y,
-        shadowEndX: plant.x + Math.cos(radAzimuth) * totalLength,
-        shadowEndY: plant.y + Math.sin(radAzimuth) * totalLength,
-        shadowLength: totalLength,
-        canopyRadius: plant.canopyRadius,
-      };
-    });
+    const shadowVectors: ShadowVector[] = sceneObjects.map(obj => {
+      const shadowLength = obj.height / Math.tan(radElevation);
+      const totalLength = shadowLength + (obj.canopyRadius ?? 0);
 
-    const newSunlightHours: Record<string, number> = { ...shadowData.sunlightHours };
+      if (obj.type === "plant" || obj.type === "tree") {
+        return {
+          _id: obj._id,
+          x: obj.x,
+          y: obj.y,
+          shadowEndX: obj.x + Math.cos(radAzimuth) * totalLength,
+          shadowEndY: obj.y + Math.sin(radAzimuth) * totalLength,
+          shadowLength: totalLength,
+          canopyRadius: obj.canopyRadius ?? 0,
+        };
+    } else if (obj.type === "structure") {
+      return {
+        _id: obj._id,
+        x: obj.x,
+        y: obj.y,
+        shadowEndX: obj.x + Math.cos(radAzimuth) * shadowLength,
+        shadowEndY: obj.y + Math.sin(radAzimuth) * shadowLength,
+        shadowLength,
+        width: obj.width,
+        depth: obj.depth,
+      };
+    }
+    return null as any; // fallback
+  });
+
     const shadedPlants: string[] = [];
 
-    // Calculate shading per plant
-    bed.plantInstances.forEach((target) => {
-      let effectiveHours = deltaHours;
+  sceneObjects.forEach(target => {
+    shadowVectors.forEach(shadow => {
+      if (shadow._id === target._id) return;
 
-      shadowVectors.forEach((shadowPlant) => {
-        if (shadowPlant._id === target._id) return;
-
-        const dx = target.x - shadowPlant.x;
-        const dy = target.y - shadowPlant.y;
-
-        const shadowDirX = Math.cos(radAzimuth);
-        const shadowDirY = Math.sin(radAzimuth);
-        const distanceAlongSun = dx * shadowDirX + dy * shadowDirY;
-
-        if (distanceAlongSun > 0 && distanceAlongSun <= shadowPlant.shadowLength) {
-          const perpDist = Math.abs(-shadowDirY * dx + shadowDirX * dy);
-          const shadowWidth = shadowPlant.canopyRadius * 2;
-          if (perpDist <= shadowWidth / 2) {
-            const shadingFactor = 0.5; // 50% sunlight blocked
-            effectiveHours *= 1 - shadingFactor;
-            if (!shadedPlants.includes(target._id)) shadedPlants.push(target._id);
-          }
+      if (shadow.canopyRadius) {
+        // circular shadow
+        const targetRadius = target.canopyRadius ?? 0;
+        const dx = target.x - shadow.x;
+        const dy = target.y - shadow.y;
+        const proj = dx * Math.cos(radAzimuth) + dy * Math.sin(radAzimuth);
+        const dist = Math.abs(dx * Math.sin(radAzimuth)) + Math.abs(dy * Math.cos(radAzimuth));
+        if (proj > 0 && proj < shadow.shadowLength && dist < targetRadius) {
+          shadedPlants.push(target._id);
         }
-      });
+      } else if (shadow.width && shadow.depth) {
+        // rectangular shadow
+        const shadowEndX = shadow.shadowEndX;
+        const shadowEndY = shadow.shadowEndY;
 
-      newSunlightHours[target._id] = (newSunlightHours[target._id] || 0) + effectiveHours;
+        const minX = Math.min(shadow.x, shadowEndX) - (shadow.width ?? 0)/2;
+        const maxX = Math.max(shadow.x, shadowEndX) + (shadow.width ?? 0)/2;
+        const minY = Math.min(shadow.y, shadowEndY) - (shadow.depth ?? 0)/2;
+        const maxY = Math.max(shadow.y, shadowEndY) + (shadow.depth ?? 0)/2;
+
+        if (
+          target.x >= minX &&
+          target.x <= maxX &&
+          target.y >= minY &&
+          target.y <= maxY
+        ) {
+          shadedPlants.push(target._id);
+        }
+      }
     });
+  });
 
-    setShadowData({ sunlightHours: newSunlightHours, shadedPlants });
-
-    // Debug logs
-    console.log(
-      "[Shadow Debug] Sun position → elevation:",
-      sunPosition.elevation.toFixed(2),
-      "azimuth:",
-      sunPosition.azimuth.toFixed(2)
-    );
-    console.log("[Shadow Debug] Cumulative sunlight per plant:", newSunlightHours);
-    console.log("[Shadow Debug] Shadow vectors:", shadowVectors);
-  }, [bed, sunPosition, simulatedDate, maxSunHours]);
+    setShadowData({ sunlightHours: {}, shadedPlants, shadowVectors });
+  }, [sceneObjects, sunPosition]);
 
   return shadowData;
 };
+
