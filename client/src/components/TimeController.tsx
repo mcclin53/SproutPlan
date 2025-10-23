@@ -19,9 +19,14 @@ export const TimeController: React.FC<TimeControllerProps> = ({
   });
 
   // Call onDateChange whenever the simulated date updates
+  const onChangeRef = React.useRef<typeof onDateChange>();
   React.useEffect(() => {
-    onDateChange?.(simulatedDate);
-  }, [simulatedDate, onDateChange]);
+    onChangeRef.current = onDateChange;
+  }, [onDateChange]);
+
+  React.useEffect(() => {
+    onChangeRef.current?.(simulatedDate);
+    }, [simulatedDate]);
 
   const localSimulatedDate = useLocalDate({ simulatedDate });
 

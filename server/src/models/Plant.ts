@@ -5,6 +5,8 @@ const plantSchema = new mongoose.Schema({
   image: {type: String },
   height: { type: Number, default: 30 },
   canopyRadius: { type: Number, default: 30 },
+  maxHeight: {type: Number},
+  maxCanopyRadius: {type: Number},
   sunReq: { type: Number, required: true },
   baseGrowthRate: { type: Number },
   currentGrowthRate: { type: Number },

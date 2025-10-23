@@ -19,10 +19,13 @@ import { TimeController } from "./TimeController";
 
 export default function Garden() {
 
+  const [localSimulatedDate, setLocalSimulatedDate] = useState(new Date());
+  const handleDateChange = React.useCallback((date: Date) => {
+    setLocalSimulatedDate(date);
+  }, []);
+
   const GARDEN_LAT = 44.7629; // TC latitude
   const GARDEN_LON = -85.6210; // TC longitude
-
-  const [localSimulatedDate, setLocalSimulatedDate] = useState(new Date());
 
   const [sunDirection, setSunDirection] = useState<{ elevation: number; azimuth: number } | null>(null);
   const lastLoggedHourRef = useRef<number | null>(null); 
@@ -195,18 +198,22 @@ export default function Garden() {
     setBeds(dragBeds);
   }, [dragBeds]);
 
-  const sceneObjects = dragBeds.flatMap(bed =>
-    (bed.plantInstances || []).map(p => ({
-      _id: p._id,
-      type: "plant" as const,
-      x: bed.x + (p.x ?? 0),
-      y: bed.y + (p.y ?? 0),
-      height: p.height ?? 0,
-      canopyRadius: p.canopyRadius ?? 0,
-    }))
-  );
+  const sceneObjects = React.useMemo(
+    () =>
+      dragBeds.flatMap(bed =>
+        (bed.plantInstances || []).map(p => ({
+          _id: p._id,
+          type: "plant" as const,
+          x: bed.x + (p.x ?? 0),
+          y: bed.y + (p.y ?? 0),
+          height: p.height ?? 0,
+          canopyRadius: p.canopyRadius ?? 0,
+        }))
+      ),
+    [dragBeds]
+    );
 
-  const shadowData = useShadow(sceneObjects, sunDirection);
+  const shadowData = useShadow(sceneObjects, sunDirection ?? null);
 
   if (bedsLoading || plantsLoading) return <p>Loading garden...</p>;
   if (bedsError) return <p>Error loading beds: {bedsError.message}</p>;
@@ -221,7 +228,7 @@ export default function Garden() {
       <TimeController
         initialDate={new Date()}
         speed={200}
-        onDateChange={(date) => setLocalSimulatedDate(date)}
+        onDateChange={handleDateChange}
       />
 
       <DndProvider backend={HTML5Backend}>
@@ -239,7 +246,8 @@ export default function Garden() {
               key={bed._id + (bed.plantInstances?.length ?? 0)}
               bed={bed}
               sunDirection={sunDirection}
-              shadowData={shadowData}
+              simulatedDate={localSimulatedDate}
+              shadedIds={shadowData.shadedPlants}
               onAddBasePlantsToBed={(bedId, basePlantIds,positions) => {
                 addPlantsToBed(bedId, basePlantIds, positions, (updatedBed) => {
                   setDragBeds(prev =>
