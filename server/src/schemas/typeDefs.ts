@@ -1,6 +1,9 @@
 import { gql } from 'apollo-server-express';
 
 const typeDefs = gql`
+  scalar JSON
+  scalar Date
+  scalar DateTime
 
   type Profile {
     _id: ID!
@@ -40,6 +43,10 @@ const typeDefs = gql`
     frostZone: String
     idealTemp: Int
     comments: String
+    sunReq: Float
+    baseGrowthRate: Float
+    maxHeight: Float
+    maxCanopyRadius: Float
   }
     
   input PlantPositionInput {
@@ -53,6 +60,9 @@ const typeDefs = gql`
     plantedAt: String
     x: Int!
     y: Int!
+    height: Float
+    canopyRadius: Float
+    lastSimulatedAt: DateTime
   }
 
   type Bed {
@@ -69,17 +79,32 @@ const typeDefs = gql`
     y: Int!
   }
 
+  type PlantGrowthSnapshot {
+    _id: ID!
+    plantInstanceId: ID!
+    bedId: ID!
+    day: Date!
+    sunlightHours: Float!
+    shadedHours: Float
+    height: Float!
+    canopyRadius: Float!
+    modelVersion: String!
+    inputs: JSON
+    createdAt: DateTime!
+    updatedAt: DateTime!
+  }
+
   type Sun {
-  _id: ID!
-  location: Location!
-  date: String
-  sunrise: String
-  sunset: String
-  solarNoon: String
-  daylightDuration: Int
-  solarElevation: Float
-  solarAzimuth: Float
-  updatedAt: String
+    _id: ID!
+    location: Location!
+    date: String
+    sunrise: String
+    sunset: String
+    solarNoon: String
+    daylightDuration: Int
+    solarElevation: Float
+    solarAzimuth: Float
+    updatedAt: String
 }
 
 type Location {
@@ -94,6 +119,7 @@ type Location {
     plants: [Plant!]!
     beds: [Bed!]!
     getSunData (latitude: Float!, longitude: Float!, date: String): Sun
+    growthSnapshots(plantInstanceId: ID!, from: Date, to: Date): [PlantGrowthSnapshot!]!
   }
 
   type Mutation {
@@ -107,6 +133,15 @@ type Location {
     clearBeds: [Bed!]!
     moveBed(bedId: ID!, position: PositionInput!): Bed
     movePlantInBed(bedId: ID!, position: PlantPositionInput!): Bed!
+    applyMidnightGrowth(
+      bedId: ID!
+      plantInstanceId: ID!
+      day: Date!
+      sunlightHours: Float!
+      shadedHours: Float
+      modelVersion: String!
+      inputs: JSON
+    ): PlantGrowthSnapshot!
   }
 `;
 

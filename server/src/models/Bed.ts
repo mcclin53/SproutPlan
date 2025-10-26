@@ -12,7 +12,10 @@ const plantInstanceSchema = new Schema({
   },
   x: { type: Number, default: 0 },
   y: { type: Number, default: 0 },
-});
+  height: { type: Number, default: 0 },
+  canopyRadius: { type: Number, default: 0 },
+  lastSimulatedAt: { type: Date, default: null }
+}, { _id: true });
 
 const bedSchema = new Schema({
   width: { type: Number, required: true },
@@ -20,6 +23,6 @@ const bedSchema = new Schema({
   plants: [plantInstanceSchema], // <-- use 'plants' array for instances
   x: { type: Number, default: 0 },
   y: { type: Number, default: 0 },
-});
+}, { timestamps: true });
 
 export const Bed = model("Bed", bedSchema);

@@ -1,6 +1,5 @@
 import React, { useState, useMemo } from "react";
 import useDragPlant from "../hooks/useDragPlant";
-// import { useShadow } from "../hooks/useShadow";
 import { useGrowPlant } from "../hooks/useGrowPlant";
 
 interface BasePlant {
@@ -9,10 +8,10 @@ interface BasePlant {
   image?: string;
   waterReq?: string;
   spacing?: number;
-  sunReq: number;
-  baseGrowthRate: number;
-  maxHeight: number;
-  maxCanopyRadius: number;
+  sunReq?: number;
+  baseGrowthRate?: number;
+  maxHeight?: number;
+  maxCanopyRadius?: number;
 }
 
 interface PlantInstance {
@@ -56,30 +55,26 @@ export default function PlantInstanceComponent({
     getPlantCoordinates,
   });
 
-  const { _id: basePlantId, ...baseFields } = plantInstance.basePlant;
-
-  const plantForGrowth = useMemo(() => ({
-    _id: plantInstance._id,
-    name: baseFields.name,
-    sunReq: (baseFields as any).sunReq ?? 8,             // hours/day for 100% efficiency
-    baseGrowthRate: (baseFields as any).baseGrowthRate ?? 1, // inches/day @ 100%
-    height: plantInstance.height ?? 0,
-    canopyRadius: plantInstance.canopyRadius ?? 0,
-    maxHeight: (baseFields as any).maxHeight ?? 36,
-    maxCanopyRadius: (baseFields as any).maxCanopyRadius ?? 18,
-    maturityDays: (baseFields as any).maturityDays ?? 90,
-    growthStage: 0,
-  }), [
-    plantInstance._id,
-    baseFields.name,
-    plantInstance.height,
-    plantInstance.canopyRadius,
-    (baseFields as any).sunReq,
-    (baseFields as any).baseGrowthRate,
-    (baseFields as any).maxHeight,
-    (baseFields as any).maxCanopyRadius,
-    (baseFields as any).maturityDays,
-  ]);
+  const plantForGrowth = useMemo(() => {
+    const base = plantInstance.basePlant;
+    return {
+        _id: plantInstance._id,
+        name: base.name,
+        // defaults if DB doesn’t have them:
+        sunReq: base.sunReq ?? 8,             // hours/day for 100% efficiency
+        baseGrowthRate: base.baseGrowthRate ?? 1, // size units/day @ 100%
+        height: plantInstance.height ?? 0,
+        canopyRadius: plantInstance.canopyRadius ?? 0,
+        // NOTE: we no longer include caps here—server clamps on midnight apply
+      };
+    }, [
+      plantInstance._id,
+      plantInstance.basePlant.name,
+      plantInstance.basePlant.sunReq,
+      plantInstance.basePlant.baseGrowthRate,
+      plantInstance.height,
+      plantInstance.canopyRadius,
+    ]);
 
   const plantsForGrowth = useMemo(() => [plantForGrowth], [plantForGrowth]);
 
@@ -87,12 +82,22 @@ export default function PlantInstanceComponent({
     ? { elevation: sunDirection.elevation, azimuth: sunDirection.azimuth }
     : null;
 
+    const bedIdByPlant = useMemo(
+  () => ({ [plantInstance._id]: bedId }),
+  [plantInstance._id, bedId]
+);
+
+
   const { grownPlants, sunlightHours } = useGrowPlant(plantsForGrowth, {
-    simulatedDate,         // ← from props
-    sun,                   // ← from props
-    shadedIds,             // ← from garden-wide shading
+    simulatedDate: simulatedDate ?? new Date(),
+    sun,
+    shadedIds,
     resetDaily: true,
     simulateMidnight: true,
+    persist: true,
+    bedIdByPlant,
+    modelVersion: "growth-v2-size-per-day",
+    buildInputsForPlant: (p) => ({ sunReq: p.sunReq, baseGrowthRate: p.baseGrowthRate }),
   });
 
   const grown = grownPlants[0];

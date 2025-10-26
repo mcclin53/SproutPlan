@@ -43,12 +43,19 @@ export const GET_BEDS = gql`
         _id
         x
         y
+        height
+        canopyRadius
+        lastSimulatedAt
         basePlant {
           _id
           name
           image
           waterReq
           spacing
+          sunReq
+          baseGrowthRate
+          maxHeight
+          maxCanopyRadius
         }
       }
     }
@@ -61,6 +68,10 @@ export const GET_PLANTS = gql`
       _id
       name
       image
+      sunReq
+      baseGrowthRate
+      maxHeight
+      maxCanopyRadius
     }
   }
 `;
@@ -74,6 +85,21 @@ export const GET_SUN_DATA = gql`
       solarElevation
       solarAzimuth
       daylightDuration
+    }
+  }
+`;
+
+export const GET_GROWTH_SNAPSHOTS = gql`
+  query GrowthSnapshots($plantInstanceId: ID!, $from: Date, $to: Date) {
+    growthSnapshots(plantInstanceId: $plantInstanceId, from: $from, to: $to) {
+      _id
+      day
+      sunlightHours
+      height
+      canopyRadius
+      modelVersion
+      createdAt
+      updatedAt
     }
   }
 `;

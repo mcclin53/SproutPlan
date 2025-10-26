@@ -36,12 +36,21 @@ export const CREATE_BED = gql`
       y
       plantInstances  {
         _id
+        x
+        y
+        height
+        canopyRadius
+        lastSimulatedAt
         basePlant {
           _id
           name
           image
           waterReq
           spacing
+          sunReq
+          baseGrowthRate
+          maxHeight
+          maxCanopyRadius
         }
       }
     }
@@ -68,12 +77,19 @@ export const ADD_PLANTS_TO_BED = gql`
         _id
         x
         y
+        height
+        canopyRadius
+        lastSimulatedAt
         basePlant {
           _id
           name
           image
           waterReq
           spacing
+          sunReq
+          baseGrowthRate
+          maxHeight
+          maxCanopyRadius
         }
       }
     }
@@ -88,12 +104,21 @@ export const REMOVE_PLANTS_FROM_BED = gql`
       length
       plantInstances  {
         _id
+        x
+        y
+        height
+        canopyRadius
+        lastSimulatedAt
         basePlant {
           _id
           name
           image
           waterReq
           spacing
+          sunReq
+          baseGrowthRate
+          maxHeight
+          maxCanopyRadius
         }
       }
     }
@@ -104,16 +129,23 @@ export const MOVE_PLANT_IN_BED = gql`
   mutation MovePlantInBed($bedId: ID!, $position: PlantPositionInput!) {
     movePlantInBed(bedId: $bedId, position: $position) {
       _id
-      plantInstances {
+      plantInstances  {
         _id
         x
         y
+        height
+        canopyRadius
+        lastSimulatedAt
         basePlant {
           _id
           name
           image
           waterReq
           spacing
+          sunReq
+          baseGrowthRate
+          maxHeight
+          maxCanopyRadius
         }
       }
     }
@@ -132,6 +164,37 @@ export const CLEAR_BEDS = gql`
   mutation ClearBeds {
     clearBeds {
       _id
+    }
+  }
+`;
+
+export const APPLY_MIDNIGHT_GROWTH = gql`
+  mutation ApplyMidnightGrowth(
+    $bedId: ID!,
+    $plantInstanceId: ID!,
+    $day: Date!,
+    $sunlightHours: Float!,
+    $shadedHours: Float,
+    $modelVersion: String!,
+    $inputs: JSON
+  ) {
+    applyMidnightGrowth(
+      bedId: $bedId,
+      plantInstanceId: $plantInstanceId,
+      day: $day,
+      sunlightHours: $sunlightHours,
+      shadedHours: $shadedHours,
+      modelVersion: $modelVersion,
+      inputs: $inputs
+    ) {
+      _id
+      day
+      sunlightHours
+      height
+      canopyRadius
+      modelVersion
+      createdAt
+      updatedAt
     }
   }
 `;

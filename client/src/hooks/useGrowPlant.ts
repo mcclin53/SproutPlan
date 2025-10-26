@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from "react";
+import { useMutation, gql } from "@apollo/client";
+import { APPLY_MIDNIGHT_GROWTH } from "../utils/mutations";
 
 interface Plant {
   _id: string;
@@ -7,11 +9,7 @@ interface Plant {
   baseGrowthRate: number; // inches per day at full efficiency
   height: number;
   canopyRadius: number;
-  maxHeight: number;
-  maxCanopyRadius: number;
-  maturityDays: number;   // days to reach full size at 100% efficiency
-  growthStage?: number;   // 0..1
-}
+  }
 
 interface SunPosition {
   elevation: number; // degrees > 0 means sun is up
@@ -19,16 +17,16 @@ interface SunPosition {
 }
 
 interface GrowOptions {
-  /** Current simulated time */
   simulatedDate: Date;
-  /** Current sun position (null or elevation<=0 => no sun accumulation) */
   sun: SunPosition | null;
-  /** IDs of plants currently shaded this tick */
   shadedIds: string[];
-  /** Reset the sunlight tally at the start of each simulated day (default: true) */
   resetDaily?: boolean;
-  /** If true, only apply growth when simulated hour === 0 (midnight) */
   simulateMidnight?: boolean;
+  persist?: boolean;
+  bedIdByPlant: Record<string, string>;
+  modelVersion?: string;
+  buildInputsForPlant?: (plant: Plant) => any;
+  onAppliedOne?: (plantId: string, newHeight: number, newCanopy: number) => void;
 }
 
 export function useGrowPlant(
@@ -41,18 +39,26 @@ export function useGrowPlant(
     shadedIds,
     resetDaily = true,
     simulateMidnight = false,
+    persist = true,
+    bedIdByPlant,
+    modelVersion = "growth-v2-size-per-day",
+    buildInputsForPlant,
+    onAppliedOne,
   } = options;
 
   const [grownPlants, setGrownPlants] = useState<Plant[]>(plants);
   const [sunlightHours, setSunlightHours] = useState<Record<string, number>>({});
 
+  const [applyMidnightGrowth] = useMutation(APPLY_MIDNIGHT_GROWTH); 
+
   const lastTickRef = useRef<number>(simulatedDate.getTime());
   const lastDayRef = useRef<string>(simulatedDate.toDateString());
 
-  const prevGrownRef = useRef<Plant[]>(plants);
-  const lastMidnightAppliedRef = useRef<string | null>(null);
+  const lastMidnightAppliedKeyRef = useRef<string | null>(null);
 
-  // 1) Accumulate sunlight hours per plant (based on shading + sun up)
+  const prevGrownRef = useRef<Plant[]>(plants);
+  
+  // Accumulates sunlight hours per plant (based on shading + sun up)
   useEffect(() => {
     const now = simulatedDate.getTime();
 
@@ -80,90 +86,139 @@ export function useGrowPlant(
     setSunlightHours(prev => {
       const next = { ...prev };
       for (const p of plants) {
-        if (!shadedSet.has(p._id)) {
+        if (!shadedSet.has(p._id)) continue; }
+        for (const p of plants) {
+          if (!shadedSet.has(p._id)) {
           next[p._id] = (next[p._id] ?? 0) + deltaHours;
-          console.log(
-          `[Sunlight] ${p.name}: +${deltaHours.toFixed(2)}h  → total = ${next[p._id].toFixed(2)}h`
-        );
-      } else {
-        console.log(`[Shaded] ${p.name}: skipped this tick`);
-      }
-    }
+          console.log(`[Sunlight] ${p.name}: +${deltaHours.toFixed(2)}h  → total = ${next[p._id].toFixed(2)}h`);
+          } 
+        }
     return next;
     });
   }, [plants, shadedIds, sun?.elevation, simulatedDate, resetDaily, simulateMidnight]);
 
   // Growth using accumulated sunlight
   useEffect(() => {
-    // If batching growth at midnight, only run when hour === 0
-    if (simulateMidnight && simulatedDate.getHours() !== 0) return;
-
-    const now = simulatedDate.getTime();
-    const deltaHours = (now - lastTickRef.current) / (1000 * 60 * 60);
+    if (!simulateMidnight) return;
 
     const isMidnight = simulatedDate.getHours() === 0;
+    if (!isMidnight) return;
+
+    // A key that changes once per calendar day
     const midnightKey = simulatedDate.toDateString() + "@00";
+    if (lastMidnightAppliedKeyRef.current === midnightKey) return; // already applied for this midnight
+    lastMidnightAppliedKeyRef.current = midnightKey;
 
-    if (simulateMidnight && isMidnight) {
-      if (lastMidnightAppliedRef.current === midnightKey) return;
-      lastMidnightAppliedRef.current = midnightKey;
-    }
-    
+    const snapshotSunHours = { ...sunlightHours };
+
+    // If persistence is disabled, keep old local-only behavior: compute a client delta and clamp visually.
+    if (!persist) {
+      // Minimal local apply (does NOT clamp to server caps; purely visual)
     const updated = plants.map(plant => {
-    const prev = prevGrownRef.current.find(p => p._id === plant._id) ?? plant;
+    const hours = snapshotSunHours[plant._id] ?? 0;
+    const sunReq = plant.sunReq || 0;
+    const eff = sunReq > 0 ? Math.min(1, hours / sunReq) : 0;
+    
+    // height/day in size units (e.g., inches) under full efficiency
+    const baseRate = plant.baseGrowthRate || 0;
+    const dH = baseRate * eff;
+        // derive canopy/day proportionally (if you want; otherwise same as baseRate)
+    const dC = dH; // simple: canopy grows at same unit rate
 
-    const hours = sunlightHours[plant._id] ?? 0;
-    const sunReq = plant.sunReq || 0; // hours/day for full efficiency
-    const sunlightRatio = sunReq > 0 ? Math.min(1, hours / sunReq) : 0;
+    const prev = prevGrownRef.current.find(x => x._id === plant._id) ?? plant;
+    const newH = (prev.height ?? 0) + dH;
+    const newC = (prev.canopyRadius ?? 0) + dC;
 
-    // --- HEIGHT growth in size units (no division by max) ---
-    const baseHeightRate = plant.baseGrowthRate || 0; // e.g., inches/day @ 100%
-    const dayFactor = simulateMidnight ? 1 : Math.max(0, deltaHours) / 24;
-    const deltaHeight = baseHeightRate * sunlightRatio * dayFactor;
+        // console.log(`[LOCAL MIDNIGHT] ${plant.name}: +${dH.toFixed(2)}h, +can ${dC.toFixed(2)}`);
 
-    // cap using maxHeight only as a ceiling
-    const maxHeight = plant.maxHeight ?? Infinity;
-    const newHeight = Math.min(maxHeight, (prev.height ?? 0) + deltaHeight);
+    onAppliedOne?.(plant._id, newH, newC);
 
-    const maxCanopyRadius = plant.maxCanopyRadius ?? Infinity;
-    const derivedCanopyRate =
-      (isFinite(maxHeight) && isFinite(maxCanopyRadius) && maxHeight > 0)
-        ? baseHeightRate * (maxCanopyRadius / maxHeight)
-        : baseHeightRate; // if no maxes, grow canopy at same unit rate as height
+    return { ...plant, height: newH, canopyRadius: newC };
+  });
 
-    const deltaCanopy = derivedCanopyRate * sunlightRatio * dayFactor;
-    const newCanopy = Math.min(maxCanopyRadius, (prev.canopyRadius ?? 0) + deltaCanopy);
+  setGrownPlants(updated);
+  prevGrownRef.current = updated;
+  if (resetDaily) setSunlightHours({});
+  return;
+}
 
-    const newStage =
-      isFinite(maxHeight) && maxHeight > 0 ? Math.min(1, newHeight / maxHeight) : (prev.growthStage ?? 0);
+    // Persisted path: call the server once per plant
+  let canceled = false;
 
-      if (simulateMidnight && isMidnight) {
-      const dH = newHeight - (prev.height ?? 0);
-      const dC = newCanopy - (prev.canopyRadius ?? 0);
-      console.log(
-        `[GROWTH @ MIDNIGHT ${simulatedDate.toLocaleDateString()}] ${plant.name}: ` +
-          `${hours.toFixed(2)}h sun (eff ${(sunlightRatio * 100).toFixed(0)}%) ` +
-          `| height ${dH.toFixed(3)} → ${newHeight.toFixed(3)} ` +
-          `| canopy ${dC.toFixed(3)} → ${newCanopy.toFixed(3)}`
-      );
+  (async () => {
+    try {
+        // Normalize day to midnight ISO
+      const dayISO = new Date(
+      new Date(simulatedDate).setHours(0, 0, 0, 0)
+      ).toISOString();
+
+        // Apply sequentially (simpler) or in parallel (Promise.all)
+      const results: { id: string; height: number; canopy: number }[] = [];
+
+      for (const plant of plants) {
+        const bedId = bedIdByPlant[plant._id];
+        if (!bedId) {
+            // eslint-disable-next-line no-console
+          console.warn(`[applyMidnightGrowth] missing bedId for plant ${plant._id}`);
+          continue;
+        }
+
+        const hours = snapshotSunHours[plant._id] ?? 0;
+
+        const variables = {
+          bedId,
+          plantInstanceId: plant._id,
+          day: dayISO,
+           sunlightHours: hours,
+          shadedHours: 0,
+          modelVersion,
+          inputs: buildInputsForPlant ? buildInputsForPlant(plant) : null,
+        };
+
+        const { data } = await applyMidnightGrowth({ variables });
+
+        if (!data?.applyMidnightGrowth) continue;
+        const { height, canopyRadius } = data.applyMidnightGrowth;
+
+        results.push({ id: plant._id, height, canopy: canopyRadius });
+        onAppliedOne?.(plant._id, height, canopyRadius);
+      }
+
+      if (canceled) return;
+
+        // Merge server-updated values back into local grownPlants
+      setGrownPlants(prev => {
+        const map = new Map(results.map(r => [r.id, r]));
+        return prev.map(p => {
+          const r = map.get(p._id);
+          return r ? { ...p, height: r.height, canopyRadius: r.canopy } : p;
+        });
+      });
+
+      prevGrownRef.current = prevGrownRef.current.map(p => {
+        const r = results.find(x => x.id === p._id);
+        return r ? { ...p, height: r.height, canopyRadius: r.canopy } : p;
+      });
+
+        // New day: clear today’s sunlight tally
+    if (resetDaily) setSunlightHours({});
+    } catch (err) {
+      console.error("[applyMidnightGrowth] error:", err);
+        // Don’t clear sunlightHours on failure; allow retry next tick if desired
     }
+  })();
 
-      return {
-        ...plant,
-        height: newHeight,
-        canopyRadius: newCanopy,
-        growthStage: newStage,
-      };
-    });
+    return () => {
+      canceled = true;
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [simulateMidnight, simulatedDate]); // intentionally *not* depending on sunlightHours to avoid re-trigger
 
-    setGrownPlants(updated);
-    prevGrownRef.current = updated;
-
-    if (simulateMidnight && isMidnight && resetDaily) {
-      setSunlightHours({});
-    }
-
-  }, [plants, sunlightHours, simulateMidnight, simulatedDate]);
+  // Keep grownPlants in sync if the list of plants changes (e.g., added/removed)
+  useEffect(() => {
+    setGrownPlants(plants);
+    prevGrownRef.current = plants;
+  }, [plants]);
 
   return { grownPlants, sunlightHours };
 }

@@ -8,6 +8,9 @@ import mongoose from "mongoose";
 import Sun from "../models/Sun.js";
 import SunCalc from "suncalc"
 import fetch from "node-fetch";
+import PlantGrowthSnapshot from "../models/PlantGrowthSnapshot.js";
+
+const MODEL_VERSION = "growth-v2-size-per-day";
 
 const resolvers: IResolvers = {
   Query: {
@@ -19,7 +22,7 @@ const resolvers: IResolvers = {
     beds: async () => {
       const beds = await Bed.find().populate({
         path: "plants.basePlant",
-        select: "_id name image waterReq spacing",
+        select: "_id name image waterReq spacing sunReq baseGrowthRate maxHeight maxCanopyRadius",
       });
 
       return beds.map(bed => ({
@@ -28,6 +31,9 @@ const resolvers: IResolvers = {
           _id: p._id,
           x: p.x ?? 0,
           y: p.y ?? 0,
+          height: p.height ?? 0,
+          canopyRadius: p.canopyRadius ?? 0,
+          lastSimulatedAt: p.lastSimulatedAt || null,
           basePlant: p.basePlant,
         })),
         x: bed.x ?? 0,
@@ -41,7 +47,17 @@ const resolvers: IResolvers = {
       return plants;
     },
 
-    getSunData: async (_: any, { latitude, longitude, date }: { latitude: number; longitude: number; date? string }) => {
+    growthSnapshots: async (_: any, { plantInstanceId, from, to }: { plantInstanceId: string; from?: string; to?: string }) => {
+      const q: any = { plantInstanceId };
+      if (from || to) {
+        q.day = {};
+        if (from) q.day.$gte = new Date(from);
+        if (to)   q.day.$lte = new Date(to);
+      }
+      return PlantGrowthSnapshot.find(q).sort({ day: 1 });
+    },
+
+    getSunData: async (_: any, { latitude, longitude, date }: { latitude: number; longitude: number; date?: string }) => {
       const queryDate = date ? new Date(date) : new Date();
       const dateOnly = new Date(queryDate.toISOString().split("T")[0]);
 
@@ -119,7 +135,7 @@ const resolvers: IResolvers = {
       const bed = await Bed.create({ width, length, plants: [] });
       const populated = await bed.populate({
         path: "plants.basePlant",
-        select: "_id name image waterReq spacing",
+        select: "_id name image waterReq spacing sunReq baseGrowthRate maxHeight maxCanopyRadius",
       });
 
       return {
@@ -129,6 +145,9 @@ const resolvers: IResolvers = {
           basePlant: p.basePlant,
           x: p.x ?? 0,
           y: p.y ?? 0,
+          height: p.height ?? 0,
+          canopyRadius: p.canopyRadius ?? 0,
+          lastSimulatedAt: p.lastSimulatedAt || null,
         })),
         x: populated.x ?? 0,
         y: populated.y ?? 0,
@@ -144,7 +163,7 @@ const resolvers: IResolvers = {
         { new: true }
       ).populate({
         path: "plants.basePlant",
-        select: "_id name image waterReq spacing",
+        select: "_id name image waterReq spacing sunReq baseGrowthRate maxHeight maxCanopyRadius",
       });
 
       if (!updatedBed) throw new Error("Bed not found");
@@ -156,6 +175,9 @@ const resolvers: IResolvers = {
           basePlant: p.basePlant,
           x: p.x ?? 0,
           y: p.y ?? 0,
+          height: p.height ?? 0,
+          canopyRadius: p.canopyRadius ?? 0,
+          lastSimulatedAt: p.lastSimulatedAt || null,
         })),
         x: updatedBed.x ?? 0,
         y: updatedBed.y ?? 0,
@@ -176,7 +198,7 @@ const resolvers: IResolvers = {
 
       const populated = await bed.populate({
         path: "plants.basePlant",
-        select: "_id name image waterReq spacing",
+        select: "_id name image waterReq spacing sunReq baseGrowthRate maxHeight maxCanopyRadius",
       });
 
       return {
@@ -186,6 +208,9 @@ const resolvers: IResolvers = {
           basePlant: p.basePlant,
           x: p.x ?? 0,
           y: p.y ?? 0,
+          height: p.height ?? 0,
+          canopyRadius: p.canopyRadius ?? 0,
+          lastSimulatedAt: p.lastSimulatedAt || null,
         })),
       };
     },
@@ -193,19 +218,19 @@ const resolvers: IResolvers = {
     addPlantsToBed: async ( _, 
       { bedId, basePlantIds, positions }: { bedId: string; basePlantIds: string[]; positions: { x: number; y: number }[] }
     ) => {
-  const bed = await Bed.findById(bedId);
-  if (!bed) throw new Error("Bed not found");
+    const bed = await Bed.findById(bedId);
+    if (!bed) throw new Error("Bed not found");
 
-  basePlantIds.forEach((basePlantId, index) => {
-      const pos = positions[index] || { x: 0, y: 0 };
-      bed.plants.push({ basePlant: basePlantId, x: pos.x, y: pos.y, });
-  });
+    basePlantIds.forEach((basePlantId, index) => {
+        const pos = positions[index] || { x: 0, y: 0 };
+        bed.plants.push({ basePlant: basePlantId, x: pos.x, y: pos.y, height: 0, canopyRadius: 0, lastSimulatedAt: null, } as any);
+    });
 
   await bed.save();
 
   const populated = await bed.populate({
     path: "plants.basePlant",
-    select: "_id name image waterReq spacing",
+    select: "_id name image waterReq spacing sunReq baseGrowthRate maxHeight maxCanopyRadius",
   });
 
   return {
@@ -216,12 +241,19 @@ const resolvers: IResolvers = {
       _id: p._id.toString(),
       x: p.x ?? 0,
       y: p.y ?? 0,
+      height: p.height ?? 0,
+      canopyRadius: p.canopyRadius ?? 0,
+      lastSimulatedAt: p.lastSimulatedAt || null,
       basePlant: p.basePlant ? {
         _id: (p.basePlant as any)._id.toString(),
         name: (p.basePlant as any).name,
         image: (p.basePlant as any).image,
         waterReq: (p.basePlant as any).waterReq,
         spacing: (p.basePlant as any).spacing,
+        sunReq: (p.basePlant as any).sunReq,
+        baseGrowthRate: (p.basePlant as any).baseGrowthRate,
+        maxHeight: (p.basePlant as any).maxHeight,
+        maxCanopyRadius: (p.basePlant as any).maxCanopyRadius,
       } : null,
     })),
   };
@@ -273,7 +305,104 @@ const resolvers: IResolvers = {
       await Bed.deleteMany({});
       return [];
     },
-  },
-};
+
+    applyMidnightGrowth: async (
+        _,
+        {
+          bedId,
+          plantInstanceId,
+          day,
+          sunlightHours,
+          shadedHours = 0,
+          modelVersion = MODEL_VERSION,
+          inputs,
+        }: {
+          bedId: string;
+          plantInstanceId: string;
+          day: string;             // ISO date/time (we’ll new Date it)
+          sunlightHours: number;
+          shadedHours?: number;
+          modelVersion?: string;
+          inputs?: any;
+        }
+      ) => {
+        // 1) Load bed + plant with base caps/knobs
+        const bed = await Bed.findById(bedId).populate({
+          path: "plants.basePlant",
+          select: "_id name sunReq baseGrowthRate maxHeight maxCanopyRadius",
+        });
+        if (!bed) throw new Error("Bed not found");
+
+        const plant: any = bed.plants.id(plantInstanceId);
+        if (!plant) throw new Error("Plant instance not found");
+
+        const base: any = plant.basePlant;
+        if (!base) throw new Error("BasePlant missing");
+
+        // 2) Normalize day once
+        const dayDate = new Date(day);
+
+        // 3) Caps (Infinity fallback if not set)
+        const capH =
+          typeof base.maxHeight === "number" && Number.isFinite(base.maxHeight)
+            ? base.maxHeight
+            : Number.POSITIVE_INFINITY;
+
+        const capC =
+          typeof base.maxCanopyRadius === "number" && Number.isFinite(base.maxCanopyRadius)
+            ? base.maxCanopyRadius
+            : Number.POSITIVE_INFINITY;
+
+        // 4) Ensure current values exist & pre-clamp
+        plant.height = Math.min(capH, typeof plant.height === "number" ? plant.height : 0);
+        plant.canopyRadius = Math.min(capC, typeof plant.canopyRadius === "number" ? plant.canopyRadius : 0);
+
+        // 5) Compute one-day growth (size units/day scaled by efficiency)
+        const sunReq = typeof base.sunReq === "number" ? base.sunReq : 8;
+        const eff = sunReq > 0 ? Math.min(1, sunlightHours / sunReq) : 0;
+        const baseHeightRate = typeof base.baseGrowthRate === "number" ? base.baseGrowthRate : 1;
+
+        const derivedCanopyRate =
+          Number.isFinite(capH) && capH > 0 && Number.isFinite(capC)
+            ? baseHeightRate * (capC / capH)
+            : baseHeightRate;
+
+        // 6) Apply + clamp
+        const newH = Math.min(capH, plant.height + baseHeightRate * eff);
+        const newC = Math.min(capC, plant.canopyRadius + derivedCanopyRate * eff);
+
+        plant.height = newH;
+        plant.canopyRadius = newC;
+        plant.lastSimulatedAt = dayDate;
+
+        // 7) Save bed (single-doc write; no transaction)
+        await bed.save();
+
+        // 8) Upsert daily snapshot (idempotent via unique index)
+        const snapshot = await PlantGrowthSnapshot.findOneAndUpdate(
+          { bedId, plantInstanceId, day: dayDate },
+          {
+            $set: {
+              sunlightHours,
+              shadedHours,
+              height: newH,
+              canopyRadius: newC,
+              modelVersion,
+              inputs: inputs ?? {
+                sunReq,
+                baseGrowthRate: baseHeightRate,
+                derivedCanopyRate,
+                capH: Number.isFinite(capH) ? capH : null,
+                capC: Number.isFinite(capC) ? capC : null,
+              },
+            },
+          },
+          { new: true, upsert: true }
+        );
+
+        return snapshot;
+      },
+    },
+  };
 
 export default resolvers;
