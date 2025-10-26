@@ -1,18 +1,8 @@
-import { useState, useEffect, useRef, useMemo } from "react";
-import SunCalc from "suncalc";
+import { useState, useEffect } from "react";
 
 interface SunPosition {
   elevation: number; // degrees above horizon
-  azimuth: number;   // degrees clockwise from North
-}
-
-interface Plant {
-  _id: string;
-  x: number;
-  y: number;
-  canopyRadius: number;
-  height: number;
-  sunReq: number;
+  azimuth: number;   // degrees clockwise from North (screen coords)
 }
 
 interface SceneObject {
@@ -20,10 +10,10 @@ interface SceneObject {
   type: "plant" | "tree" | "structure";
   x: number;
   y: number;
-  height: number;
-  canopyRadius?: number;
-  width?: number;
-  depth?: number;
+  height: number;           // cm
+  canopyRadius?: number;    // cm
+  width?: number;           // px (for structures) - or scale similarly if cm
+  depth?: number;           // px (for structures)
 }
 
 interface ShadowVector {
@@ -32,10 +22,10 @@ interface ShadowVector {
   y: number;
   shadowEndX: number;
   shadowEndY: number;
-  shadowLength: number;
-  canopyRadius?: number;
-  width?: number;
-  depth?: number;
+  shadowLength: number;     // px
+  canopyRadius?: number;    // px (for plant/tree shadows)
+  width?: number;           // px (for structures)
+  depth?: number;           // px (for structures)
 }
 
 interface ShadowData {
@@ -46,7 +36,8 @@ interface ShadowData {
 
 export const useShadow = (
   sceneObjects: SceneObject[],
-  sunPosition: SunPosition | null
+  sunPosition: SunPosition | null,
+  debug = false
 ) => {
   const [shadowData, setShadowData] = useState<ShadowData>({
     sunlightHours: {},
@@ -54,113 +45,142 @@ export const useShadow = (
     shadowVectors: [],
   });
 
-   const sunDeps = useMemo(
-    () =>
-      sunPosition
-        ? [Number(sunPosition.elevation), Number(sunPosition.azimuth)]
-        : [null, null],
-    [sunPosition]
-  );
-
   useEffect(() => {
-  if (!sunPosition || sunPosition.elevation <= 0) {
-    setShadowData(prev =>
-      prev.shadowVectors.length || prev.shadedPlants.length
-        ? { sunlightHours: prev.sunlightHours, shadedPlants: [], shadowVectors: [] }
-        : prev
-    );
-    return;
-  }
+    // No sun → clear shadows
+    if (!sunPosition || sunPosition.elevation <= 0) {
+      if (debug) console.log("[Shadow] Night or no sun — clearing shadows");
+      setShadowData(prev =>
+        prev.shadowVectors.length || prev.shadedPlants.length
+          ? { sunlightHours: prev.sunlightHours, shadedPlants: [], shadowVectors: [] }
+          : prev
+      );
+      return;
+    }
 
-  const radElevation = (sunPosition.elevation * Math.PI) / 180;
-  const radAzimuth = (sunPosition.azimuth * Math.PI) / 180;
+    const radElevation = (sunPosition.elevation * Math.PI) / 180;
+    const azRad = (sunPosition.azimuth * Math.PI) / 180;
 
-  // precompute shadow direction (used by both vector calc & overlap test)
-  const dirX = Math.cos(radAzimuth);
-  const dirY = Math.sin(radAzimuth);
+    // Screen coords: +x right, +y down
+    // Unit vector toward the sun:
+    const sunX = Math.sin(azRad);
+    const sunY = -Math.cos(azRad);
+    // Shadow goes opposite the sun:
+    const dirX = -sunX;
+    const dirY = -sunY;
 
-  console.log(`Calculating shadows for ${sceneObjects.length} scene objects`);
+    // Convert physical cm → screen px (tune this to your UI scale)
+    const PX_PER_CM = 2;
 
-  const shadowVectors: ShadowVector[] = sceneObjects
-    .map(obj => {
-      const shadowLength = obj.height / Math.tan(radElevation);
-      const totalLength = shadowLength + (obj.canopyRadius ?? 0);
+    if (debug) {
+      console.log(
+        `[Shadow] sun`,
+        { elev: sunPosition.elevation.toFixed(1), az: sunPosition.azimuth.toFixed(1) },
+        `dir=(${dirX.toFixed(2)}, ${dirY.toFixed(2)})`,
+        `objs=${sceneObjects.length}`
+      );
+      console.log(
+        `[Shadow] Direction vector — dirX: ${dirX.toFixed(2)}, dirY: ${dirY.toFixed(2)}`
+      );
+    }
 
-      if (obj.type === "plant" || obj.type === "tree") {
-        return {
-          _id: obj._id,
-          x: obj.x,
-          y: obj.y,
-          shadowEndX: obj.x + dirX * totalLength,
-          shadowEndY: obj.y + dirY * totalLength,
-          shadowLength: totalLength,
-          canopyRadius: obj.canopyRadius ?? 0,
-        };
-      } else if (obj.type === "structure") {
-        return {
-          _id: obj._id,
-          x: obj.x,
-          y: obj.y,
-          shadowEndX: obj.x + dirX * shadowLength,
-          shadowEndY: obj.y + dirY * shadowLength,
-          shadowLength,
-          width: obj.width,
-          depth: obj.depth,
-        };
-      }
-      return null as any; // fallback
-    })
-    .filter(Boolean) as ShadowVector[];
+    const shadowVectors: ShadowVector[] = sceneObjects
+      .map(obj => {
+        // shadow length from object height
+        const shadowLengthPx = (obj.height * PX_PER_CM) / Math.tan(radElevation);
+        if (!isFinite(shadowLengthPx) || shadowLengthPx <= 0) return null;
 
-  const shadedPlants: string[] = [];
+        if (obj.type === "plant" || obj.type === "tree") {
+          const casterRadiusPx = (obj.canopyRadius ?? 0) * PX_PER_CM;
+          const totalLength = shadowLengthPx + casterRadiusPx; // start shadow after canopy
 
-  sceneObjects.forEach(target => {
-    shadowVectors.forEach(shadow => {
-      if (shadow._id === target._id) return;
+          return {
+            _id: obj._id,
+            x: obj.x,
+            y: obj.y,
+            shadowEndX: obj.x + dirX * totalLength,
+            shadowEndY: obj.y + dirY * totalLength,
+            shadowLength: totalLength,
+            canopyRadius: casterRadiusPx, // stored in px
+          };
+        } else if (obj.type === "structure") {
+          return {
+            _id: obj._id,
+            x: obj.x,
+            y: obj.y,
+            shadowEndX: obj.x + dirX * shadowLengthPx,
+            shadowEndY: obj.y + dirY * shadowLengthPx,
+            shadowLength: shadowLengthPx,
+            width: obj.width,
+            depth: obj.depth,
+          };
+        }
+        return null;
+      })
+      .filter(Boolean) as ShadowVector[];
 
-      if (shadow.canopyRadius != null) {
-        // circular shadow (canopy-radius “band” around the axis)
-        const targetRadius = target.canopyRadius ?? 0;
+          if (debug) {
+      console.log(
+        "[Shadow] Computed shadow vectors:",
+        shadowVectors.map(v => ({
+          id: v._id,
+          from: { x: Math.round(v.x), y: Math.round(v.y) },
+          to: { x: Math.round(v.shadowEndX), y: Math.round(v.shadowEndY) },
+          len: Math.round(v.shadowLength),
+        }))
+      );
+    }
+
+    const shadedIds: string[] = [];
+
+    // Overlap test
+    sceneObjects.forEach(target => {
+      shadowVectors.forEach(shadow => {
+        if (shadow._id === target._id) return; // a plant doesn't shade itself
+
         const dx = target.x - shadow.x;
         const dy = target.y - shadow.y;
 
-        // distance ALONG the shadow axis
+        // Distance along the shadow axis (positive = down-shadow)
         const along = dx * dirX + dy * dirY;
-        // proper PERPENDICULAR distance to the axis
+        // Perpendicular distance from shadow axis
         const perp = Math.abs(-dirY * dx + dirX * dy);
 
-        if (along > 0 && along < shadow.shadowLength && perp < targetRadius) {
-          shadedPlants.push(target._id);
-        }
-      } else if (shadow.width && shadow.depth) {
-        // rectangular shadow (structure)
-        const shadowEndX = shadow.shadowEndX;
-        const shadowEndY = shadow.shadowEndY;
+        if (shadow.canopyRadius != null) {
+          // Circular "tube" (plant/tree shadow)
+          const start = shadow.canopyRadius;           // begin beyond caster canopy
+          const end = shadow.shadowLength;
+          const halfWidth = Math.max(shadow.canopyRadius, 1); // avoid zero width
 
-        const minX = Math.min(shadow.x, shadowEndX) - (shadow.width ?? 0) / 2;
-        const maxX = Math.max(shadow.x, shadowEndX) + (shadow.width ?? 0) / 2;
-        const minY = Math.min(shadow.y, shadowEndY) - (shadow.depth ?? 0) / 2;
-        const maxY = Math.max(shadow.y, shadowEndY) + (shadow.depth ?? 0) / 2;
+          if (along > start && along < end && perp < halfWidth) {
+            shadedIds.push(target._id);
+          }
+        } else if (shadow.width && shadow.depth) {
+          // Axis-aligned rectangle from caster to shadow end (structure)
+          const minX = Math.min(shadow.x, shadow.shadowEndX) - (shadow.width ?? 0) / 2;
+          const maxX = Math.max(shadow.x, shadow.shadowEndX) + (shadow.width ?? 0) / 2;
+          const minY = Math.min(shadow.y, shadow.shadowEndY) - (shadow.depth ?? 0) / 2;
+          const maxY = Math.max(shadow.y, shadow.shadowEndY) + (shadow.depth ?? 0) / 2;
 
-        if (target.x >= minX && target.x <= maxX && target.y >= minY && target.y <= maxY) {
-          shadedPlants.push(target._id);
+          if (target.x >= minX && target.x <= maxX && target.y >= minY && target.y <= maxY) {
+            shadedIds.push(target._id);
+          }
         }
-      }
+      });
     });
-  });
 
-  console.log(`Shaded plants:`, shadedPlants);
+    const shadedPlants = Array.from(new Set(shadedIds));
 
-  setShadowData(prev => {
-    const next: ShadowData = {
-      sunlightHours: prev.sunlightHours, // preserve your tally
+    if (debug) {
+      console.log("[Shadow] Shaded plant IDs:", shadedPlants);
+      if (shadedPlants.length === 0) console.log("[Shadow] No plants shaded this frame");
+    }
+
+    setShadowData(prev => ({
+      sunlightHours: prev.sunlightHours, // keep any external tally you’re doing
       shadedPlants,
       shadowVectors,
-    };
-    return next;
-  });
-}, [sceneObjects, sunPosition]);
+    }));
+  }, [sceneObjects, sunPosition?.elevation, sunPosition?.azimuth]);
 
   return shadowData;
 };
-

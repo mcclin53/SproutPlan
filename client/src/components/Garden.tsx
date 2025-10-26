@@ -13,131 +13,35 @@ import useDragBed from "../hooks/useDragBed";
 import type { DragBed } from "../hooks/useDragBed";
 import { MOVE_PLANT_IN_BED } from "../utils/mutations";
 import useRemovePlantsFromBed from "../hooks/useRemovePlantsFromBed";
-import SunCalc from "suncalc";
 import { useShadow } from "../hooks/useShadow";
+import { useSunData } from "../hooks/useSunData"; // ✅ use our sun hook
 import { TimeController } from "./TimeController";
 
 export default function Garden() {
-
   const [localSimulatedDate, setLocalSimulatedDate] = useState(new Date());
-  const handleDateChange = React.useCallback((date: Date) => {
+  const handleDateChange = useCallback((date: Date) => {
     setLocalSimulatedDate(date);
   }, []);
 
-  const GARDEN_LAT = 44.7629; // TC latitude
-  const GARDEN_LON = -85.6210; // TC longitude
+  // Traverse City, MI (example coords)
+  const GARDEN_LAT = 44.7629;
+  const GARDEN_LON = -85.6210;
 
-  const [sunDirection, setSunDirection] = useState<{ elevation: number; azimuth: number } | null>(null);
-  const lastLoggedHourRef = useRef<number | null>(null); 
-  
-  useEffect(() => {
-    const times = SunCalc.getTimes(localSimulatedDate, GARDEN_LAT, GARDEN_LON);
-    const sunrise = times.sunrise;
-    const sunset = times.sunset;
-
-    let elevation = 0;
-    let azimuth = 0;
-
-    if (localSimulatedDate >= sunrise && localSimulatedDate <= sunset) {
-      const sunPos = SunCalc.getPosition(localSimulatedDate, GARDEN_LAT, GARDEN_LON);
-      elevation = (sunPos.altitude * 180) / Math.PI;
-      azimuth = ((sunPos.azimuth * 180) / Math.PI + 180) % 360;
-    }
-
-    setSunDirection({ elevation, azimuth });
-
-    // log once per simulated hour
-    const currentHour = localSimulatedDate.getHours();
-    if (lastLoggedHourRef.current !== currentHour) {
-      lastLoggedHourRef.current = currentHour;
-
-      console.log(
-        "[Simulated Time]",
-        localSimulatedDate.toLocaleTimeString(),
-        "| Elevation:", elevation.toFixed(2),
-        "| Azimuth:", azimuth.toFixed(2),
-        "| Sunrise:", sunrise.toLocaleTimeString(),
-        "| Sunset:", sunset.toLocaleTimeString()
-      );
-    }
-  }, [localSimulatedDate]);
-
+  // Apollo
   const { loading: bedsLoading, error: bedsError, data: bedsData } = useQuery(GET_BEDS);
   const { loading: plantsLoading, error: plantsError, data: plantsData } = useQuery(GET_PLANTS);
 
+  // Mutations / hooks
   const addPlantsToBed = useAddPlantsToBed();
   const clearBeds = useClearBeds();
   const removePlantsFromBed = useRemovePlantsFromBed();
-  const [dragBeds, setDragBeds] = useState<DragBed[]>([]);
   const [movePlantInBedMutation] = useMutation(MOVE_PLANT_IN_BED);
 
-  const removeLocalBed = (bedId: string) => {
-    setDragBeds(prev => prev.filter(b => b._id !== bedId));
-  };
-  const removeBed = useRemoveBed(removeLocalBed);
+  // Local drag state for beds
+  const [dragBeds, setDragBeds] = useState<DragBed[]>([]);
+  const { beds, moveBed, setBeds } = useDragBed(dragBeds);
 
-  const handleRemovePlant = async (bedId: string, plantInstanceId: string) => {
-    // Optimistically remove the plant locally
-    setDragBeds(prev =>
-      prev.map(bed => {
-        if (bed._id !== bedId) return bed;
-        return {
-          ...bed,
-          plantInstances: bed.plantInstances?.filter(p => p._id !== plantInstanceId) || [],
-        };
-      })
-    );
-
-    try {
-      const updatedBed = await removePlantsFromBed(bedId, [plantInstanceId]);
-
-      // Merge remaining plant positions from previous state
-      setDragBeds(prev =>
-        prev.map(b => {
-          if (b._id !== updatedBed._id) return b;
-          const mergedPlantInstances = updatedBed.plantInstances.map(p => {
-            const localPlant = b.plantInstances?.find(lp => lp._id === p._id);
-            return localPlant ? { ...p, x: localPlant.x, y: localPlant.y } : p;
-          });
-          return { ...b, plantInstances: mergedPlantInstances };
-        })
-      );
-    } catch (err) {
-      console.error("Error removing plant from bed:", err);
-    }
-  };
-
-  const movePlantInBed = (bedId: string, plantId: string, newX: number, newY: number) => {
-    // Update local state immediately
-    setDragBeds(prev =>
-      prev.map(bed =>
-        bed._id === bedId
-          ? {
-              ...bed,
-              plantInstances: (bed.plantInstances || []).map(p =>
-                p._id === plantId ? { ...p, x: newX, y: newY } : p
-              ),
-            }
-          : bed
-      )
-    );
-
-    // Fire-and-forget mutation to server
-    movePlantInBedMutation({
-      variables: { bedId, position: { plantInstanceId: plantId, x: newX, y: newY } },
-    }).catch(err => console.error(err));
-  };
-
-  const getPlantCoordinates = useCallback(
-    (bedId: string, plantId: string) => {
-      const targetBed = dragBeds.find(b => b._id === bedId);
-      const plant = targetBed?.plantInstances?.find(p => p._id === plantId);
-      return plant ? { x: plant.x ?? 0, y: plant.y ?? 0 } : undefined;
-    },
-    [dragBeds]
-  );
-
-  // Update draggable beds whenever bedsData changes
+  // Keep drag state in sync with server beds
   useEffect(() => {
     if (!bedsData?.beds?.length) return;
 
@@ -150,10 +54,9 @@ export default function Garden() {
 
       for (const bed of bedsData.beds) {
         const localBed = prevMap.get(bed._id);
-        const serverPlantInstances = bed.plantInstances || [];
 
         // Merge local positions for plants that still exist
-        const mergedPlantInstances = bed.plantInstances.map(sp => {
+        const mergedPlantInstances = (bed.plantInstances || []).map(sp => {
           const localPlant = localBed?.plantInstances?.find(lp => lp._id === sp._id);
           return {
             ...sp,
@@ -166,13 +69,13 @@ export default function Garden() {
         let y = typeof bed.y === "number" ? bed.y : localBed?.y ?? PADDING;
 
         // Compute non-overlapping spot if coordinates not provided
-        const overlaps = (x: number, y: number, w: number, l: number) =>
+        const overlaps = (ox: number, oy: number, w: number, l: number) =>
           [...prevDragBeds, ...placed].some(
             b =>
-              x < b.x + b.width * GRID_SIZE + PADDING &&
-              x + w * GRID_SIZE + PADDING > b.x &&
-              y < b.y + b.length * GRID_SIZE + PADDING &&
-              y + l * GRID_SIZE + PADDING > b.y
+              ox < b.x + b.width * GRID_SIZE + PADDING &&
+              ox + w * GRID_SIZE + PADDING > b.x &&
+              oy < b.y + b.length * GRID_SIZE + PADDING &&
+              oy + l * GRID_SIZE + PADDING > b.y
           );
 
         if (typeof bed.x !== "number" || typeof bed.y !== "number") {
@@ -192,12 +95,82 @@ export default function Garden() {
     });
   }, [bedsData]);
 
-  const { beds, moveBed, setBeds } = useDragBed(dragBeds);
-
+  // Push dragBeds into the drag system
   useEffect(() => {
     setBeds(dragBeds);
-  }, [dragBeds]);
+  }, [dragBeds, setBeds]);
 
+  // Move/remove helpers
+  const removeLocalBed = (bedId: string) => {
+    setDragBeds(prev => prev.filter(b => b._id !== bedId));
+  };
+  const removeBed = useRemoveBed(removeLocalBed);
+
+  const handleRemovePlant = async (bedId: string, plantInstanceId: string) => {
+    // optimistic local remove
+    setDragBeds(prev =>
+      prev.map(bed => {
+        if (bed._id !== bedId) return bed;
+        return {
+          ...bed,
+          plantInstances: bed.plantInstances?.filter(p => p._id !== plantInstanceId) || [],
+        };
+      })
+    );
+
+    try {
+      const updatedBed = await removePlantsFromBed(bedId, [plantInstanceId]);
+
+      // merge remaining plant positions
+      setDragBeds(prev =>
+        prev.map(b => {
+          if (b._id !== updatedBed._id) return b;
+          const mergedPlantInstances = updatedBed.plantInstances.map(p => {
+            const localPlant = b.plantInstances?.find(lp => lp._id === p._id);
+            return localPlant ? { ...p, x: localPlant.x, y: localPlant.y } : p;
+          });
+          return { ...b, plantInstances: mergedPlantInstances };
+        })
+      );
+    } catch (err) {
+      console.error("Error removing plant from bed:", err);
+    }
+  };
+
+  const movePlantInBed = (bedId: string, plantId: string, newX: number, newY: number) => {
+    // optimistic local move
+    setDragBeds(prev =>
+      prev.map(bed =>
+        bed._id === bedId
+          ? {
+              ...bed,
+              plantInstances: (bed.plantInstances || []).map(p =>
+                p._id === plantId ? { ...p, x: newX, y: newY } : p
+              ),
+            }
+          : bed
+      )
+    );
+
+    // fire-and-forget mutation
+    movePlantInBedMutation({
+      variables: { bedId, position: { plantInstanceId: plantId, x: newX, y: newY } },
+    }).catch(err => console.error(err));
+  };
+
+  const getPlantCoordinates = useCallback(
+    (bedId: string, plantId: string) => {
+      const targetBed = dragBeds.find(b => b._id === bedId);
+      const plant = targetBed?.plantInstances?.find(p => p._id === plantId);
+      return plant ? { x: plant.x ?? 0, y: plant.y ?? 0 } : undefined;
+    },
+    [dragBeds]
+  );
+
+  // ---------- Sun + Shadows ----------
+  const { data: sunData } = useSunData(GARDEN_LAT, GARDEN_LON, localSimulatedDate);
+
+  // Build scene objects (screen coords)
   const sceneObjects = React.useMemo(
     () =>
       dragBeds.flatMap(bed =>
@@ -206,15 +179,25 @@ export default function Garden() {
           type: "plant" as const,
           x: bed.x + (p.x ?? 0),
           y: bed.y + (p.y ?? 0),
-          height: p.height ?? 0,
-          canopyRadius: p.canopyRadius ?? 0,
+          height: p.height ?? 0,           // cm
+          canopyRadius: p.canopyRadius ?? 0, // cm
         }))
       ),
     [dragBeds]
-    );
+  );
 
-  const shadowData = useShadow(sceneObjects, sunDirection ?? null);
+  // feed screen-mapped azimuth/elevation into useShadow
+  const shadowData = useShadow(
+    sceneObjects,
+    sunData ? { elevation: sunData.solarElevation, azimuth: sunData.screenAzimuth } : null, true
+  );
 
+  // also pass the same sunDirection to Bed (for any UI/overlay arrows)
+  const sunDirection = sunData
+    ? { elevation: sunData.solarElevation, azimuth: sunData.screenAzimuth }
+    : null;
+
+  // ---------- Render ----------
   if (bedsLoading || plantsLoading) return <p>Loading garden...</p>;
   if (bedsError) return <p>Error loading beds: {bedsError.message}</p>;
   if (plantsError) return <p>Error loading plants: {plantsError.message}</p>;
@@ -245,10 +228,10 @@ export default function Garden() {
             <Bed
               key={bed._id + (bed.plantInstances?.length ?? 0)}
               bed={bed}
-              sunDirection={sunDirection}
+              sunDirection={sunDirection} // ✅ same basis as useShadow
               simulatedDate={localSimulatedDate}
               shadedIds={shadowData.shadedPlants}
-              onAddBasePlantsToBed={(bedId, basePlantIds,positions) => {
+              onAddBasePlantsToBed={(bedId, basePlantIds, positions) => {
                 addPlantsToBed(bedId, basePlantIds, positions, (updatedBed) => {
                   setDragBeds(prev =>
                     prev.map(b => {
@@ -257,7 +240,9 @@ export default function Garden() {
                         const localPlant = b.plantInstances?.find(lp => lp._id === sp._id);
                         const posIndex = basePlantIds.indexOf(sp.basePlant._id);
                         const pos = positions[posIndex] || { x: sp.x, y: sp.y };
-                        return localPlant ? { ...sp, x: localPlant.x, y: localPlant.y } : { ...sp, x: pos.x, y: pos.y };
+                        return localPlant
+                          ? { ...sp, x: localPlant.x, y: localPlant.y }
+                          : { ...sp, x: pos.x, y: pos.y };
                       });
                       return { ...b, plantInstances: mergedPlantInstances };
                     })
@@ -271,6 +256,24 @@ export default function Garden() {
               handleRemovePlant={handleRemovePlant}
             />
           ))}
+            <svg
+            style={{ position: "absolute", inset: 0, pointerEvents: "none" }}
+            width="100%"
+            height="100%"
+            viewBox={`0 0 ${window.innerWidth} ${window.innerHeight}`}
+          >
+            {shadowData.shadowVectors.map(v => (
+              <line
+                key={v._id}
+                x1={v.x}
+                y1={v.y}
+                x2={v.shadowEndX}
+                y2={v.shadowEndY}
+                stroke="rgba(0,0,0,0.3)"
+                strokeWidth={2}
+              />
+            ))}
+          </svg>
         </div>
       </DndProvider>
 
