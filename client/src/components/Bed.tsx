@@ -112,6 +112,7 @@ const [, drop] = useDrop(() => ({
             sunDirection={sunDirection}
             simulatedDate={simulatedDate}
             shadedIds={shadedIds}
+            isShaded={shadedIds.includes(plantInstance._id)}
           />
         ))
       ) : (

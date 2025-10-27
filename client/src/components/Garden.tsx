@@ -14,8 +14,9 @@ import type { DragBed } from "../hooks/useDragBed";
 import { MOVE_PLANT_IN_BED } from "../utils/mutations";
 import useRemovePlantsFromBed from "../hooks/useRemovePlantsFromBed";
 import { useShadow } from "../hooks/useShadow";
-import { useSunData } from "../hooks/useSunData"; // ✅ use our sun hook
+import { useSunData } from "../hooks/useSunData";
 import { TimeController } from "./TimeController";
+import SunSimulator from "./SunSimulator";
 
 export default function Garden() {
   const [localSimulatedDate, setLocalSimulatedDate] = useState(new Date());
@@ -204,6 +205,8 @@ export default function Garden() {
 
   const plantsToRender = plantsData.plants;
 
+  const isNight = sunData ? sunData.solarElevation <= 0 : false;
+
   return (
     <div>
       <DigBed />
@@ -223,12 +226,13 @@ export default function Garden() {
         </div>
 
         {/* Garden beds */}
-        <div className="garden" style={{ position: "relative", width: "100%", height: "100%" }}>
+        <div className={` garden ${isNight ? "night" : ""}`}>
+          <div className="garden-canvas">
           {beds.map(bed => (
             <Bed
               key={bed._id + (bed.plantInstances?.length ?? 0)}
               bed={bed}
-              sunDirection={sunDirection} // ✅ same basis as useShadow
+              sunDirection={sunDirection}
               simulatedDate={localSimulatedDate}
               shadedIds={shadowData.shadedPlants}
               onAddBasePlantsToBed={(bedId, basePlantIds, positions) => {
@@ -243,37 +247,41 @@ export default function Garden() {
                         return localPlant
                           ? { ...sp, x: localPlant.x, y: localPlant.y }
                           : { ...sp, x: pos.x, y: pos.y };
-                      });
-                      return { ...b, plantInstances: mergedPlantInstances };
-                    })
-                  );
-                });
-              }}
-              onRemoveBed={() => removeBed(bed._id)}
-              moveBed={moveBed}
-              movePlantInBed={movePlantInBed}
-              getPlantCoordinates={getPlantCoordinates}
-              handleRemovePlant={handleRemovePlant}
-            />
-          ))}
-            <svg
-            style={{ position: "absolute", inset: 0, pointerEvents: "none" }}
-            width="100%"
-            height="100%"
-            viewBox={`0 0 ${window.innerWidth} ${window.innerHeight}`}
-          >
-            {shadowData.shadowVectors.map(v => (
-              <line
-                key={v._id}
-                x1={v.x}
-                y1={v.y}
-                x2={v.shadowEndX}
-                y2={v.shadowEndY}
-                stroke="rgba(0,0,0,0.3)"
-                strokeWidth={2}
+                        });
+                        return { ...b, plantInstances: mergedPlantInstances };
+                      })
+                    );
+                  });
+                }}
+                onRemoveBed={() => removeBed(bed._id)}
+                moveBed={moveBed}
+                movePlantInBed={movePlantInBed}
+                getPlantCoordinates={getPlantCoordinates}
+                handleRemovePlant={handleRemovePlant}
               />
-            ))}
-          </svg>
+              ))}
+              {!isNight && (
+                <svg
+                className="garden-shadows"
+                width="100%"
+                height="100%"
+                viewBox={`0 0 ${window.innerWidth} ${window.innerHeight}`}
+              >
+                {shadowData.shadowVectors.map(v => (
+                  <line
+                    key={v._id}
+                    x1={(v.startX ?? v.x)}
+                    y1={(v.startY ?? v.y)}
+                    x2={v.shadowEndX}
+                    y2={v.shadowEndY}
+                    stroke="rgba(0,0,0,0.3)"
+                    strokeWidth={2}
+                  />
+                ))}
+              </svg>
+              )}
+            <SunSimulator sunData={sunData} fullScreen intensityMultiplier={1.1} vignetteStrength={1} zIndex={2147483000} />
+          </div>
         </div>
       </DndProvider>
 

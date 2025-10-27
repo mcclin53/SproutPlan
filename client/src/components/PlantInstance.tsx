@@ -32,6 +32,7 @@ interface Props {
   sunDirection?: { azimuth: number; elevation: number } | null;
   simulatedDate?: Date;
   shadedIds: string[];
+  isShaded?: boolean;
 }
 
 const BASE_URL = (import.meta.env.VITE_API_URL as string) || "http://localhost:3001";
@@ -45,6 +46,7 @@ export default function PlantInstanceComponent({
   sunDirection,
   simulatedDate,
   shadedIds,
+  isShaded = false,
 }: Props) {
   const [failedImages, setFailedImages] = useState(false);
 
@@ -114,14 +116,21 @@ export default function PlantInstanceComponent({
 
   const azimuth = sunDirection?.azimuth ?? 180; // Default south
   const elevation = sunDirection?.elevation ?? 45; // Default mid-sky
+  const isNight = elevation <= 0;
+
   const lightIntensity = Math.max(0, Math.min(1, elevation / 90));
+  const effectiveLight = isShaded ? 0 : lightIntensity;
   const gradientAngle = (450 - azimuth) % 360;
 
-  const shadowDistance = (1 - lightIntensity) * 15;
-  const shadowX = Math.cos((azimuth * Math.PI) / 180) * shadowDistance;
-  const shadowY = Math.sin((azimuth * Math.PI) / 180) * shadowDistance;
-  const shadowBlur = 15 * (1 - lightIntensity) + 5;
-  const shadowColor = `rgba(0,0,0,${0.3 * (1 - lightIntensity)})`;
+  const azRad = (azimuth * Math.PI) / 180;
+  const shadowDistance = (1 - effectiveLight) * 15;
+  const shadowX = -Math.sin(azRad) * shadowDistance;
+  const shadowY =  Math.cos(azRad) * shadowDistance;
+
+  const shadowBlur = 15 * (1 - effectiveLight) + 5;
+  const shadowColor = `rgba(0,0,0,${0.3 * (1 - effectiveLight)})`;
+
+  const boxShadowStyle = isNight ? "none" : `${shadowX}px ${shadowY}px ${shadowBlur}px ${shadowColor}`;
 
   return (
     <div
@@ -132,9 +141,11 @@ export default function PlantInstanceComponent({
         top: plantInstance.y,
         left: plantInstance.x,
         opacity: isDraggingPlant ? 0.5 : 1,
+        // filter: isShaded ? "brightness(0.7)" : "none",
         cursor: "move",
         width: 40,
         height: 40,
+        transition: "opacity 0.3s ease, filter 0.3s ease",
       }}
       title={`${plantInstance.basePlant.name} — ${hoursToday.toFixed(1)}h sun today`}
     >
@@ -145,8 +156,8 @@ export default function PlantInstanceComponent({
         style={{
           width: 40,
           height: 40,
-          filter: `brightness(${0.6 + lightIntensity * 0.8})`,
-          boxShadow: `${shadowX}px ${shadowY}px ${shadowBlur}px ${shadowColor}`,
+          filter: `brightness(${0.6 + effectiveLight * 0.8})`,
+          boxShadow: boxShadowStyle,
           transition: "filter 0.5s ease-in-out, box-shadow 0.5s ease-in-out",
           borderRadius: "50%",
         }}
@@ -165,7 +176,7 @@ export default function PlantInstanceComponent({
           left: 0,
           width: "100%",
           height: "100%",
-          background: `linear-gradient(${gradientAngle}deg, rgba(255,255,200,${0.3 * lightIntensity}) 0%, transparent 70%)`,
+          background: `linear-gradient(${gradientAngle}deg, rgba(255,255,200,${0.3 * effectiveLight}) 0%, transparent 70%)`,
           pointerEvents: "none",
           borderRadius: "50%",
           transition: "all 0.5s ease-in-out",

@@ -8,24 +8,20 @@ interface SunPosition {
 interface SceneObject {
   _id: string;
   type: "plant" | "tree" | "structure";
-  x: number;
-  y: number;
+  x: number; y: number;
   height: number;           // cm
   canopyRadius?: number;    // cm
-  width?: number;           // px (for structures) - or scale similarly if cm
-  depth?: number;           // px (for structures)
+  width?: number; depth?: number;           // px (for structures)
 }
 
 interface ShadowVector {
   _id: string;
-  x: number;
-  y: number;
-  shadowEndX: number;
-  shadowEndY: number;
+  x: number; y: number;
+  startX?: number; startY?: number;
+  shadowEndX: number; shadowEndY: number;
   shadowLength: number;     // px
   canopyRadius?: number;    // px (for plant/tree shadows)
-  width?: number;           // px (for structures)
-  depth?: number;           // px (for structures)
+  width?: number; depth?: number;           // px (for structures)
 }
 
 interface ShadowData {
@@ -68,7 +64,7 @@ export const useShadow = (
     const dirX = -sunX;
     const dirY = -sunY;
 
-    // Convert physical cm → screen px (tune this to your UI scale)
+    // Convert physical cm → screen px 
     const PX_PER_CM = 2;
 
     if (debug) {
@@ -91,28 +87,35 @@ export const useShadow = (
 
         if (obj.type === "plant" || obj.type === "tree") {
           const casterRadiusPx = (obj.canopyRadius ?? 0) * PX_PER_CM;
-          const totalLength = shadowLengthPx + casterRadiusPx; // start shadow after canopy
+          const totalLength = shadowLengthPx + casterRadiusPx;
+
+          const startX = obj.x + dirX * casterRadiusPx; // start shadow at edge of canopy
+          const startY = obj.y + dirY * casterRadiusPx;
 
           return {
             _id: obj._id,
             x: obj.x,
             y: obj.y,
+            startX,
+            startY,
             shadowEndX: obj.x + dirX * totalLength,
             shadowEndY: obj.y + dirY * totalLength,
             shadowLength: totalLength,
             canopyRadius: casterRadiusPx, // stored in px
-          };
+          } as ShadowVector & { startX: number; startY: number };
         } else if (obj.type === "structure") {
           return {
             _id: obj._id,
             x: obj.x,
             y: obj.y,
+            startX: obj.x,
+            startY: obj.y,
             shadowEndX: obj.x + dirX * shadowLengthPx,
             shadowEndY: obj.y + dirY * shadowLengthPx,
             shadowLength: shadowLengthPx,
             width: obj.width,
             depth: obj.depth,
-          };
+          } as ShadowVector & { startX: number; startY: number };
         }
         return null;
       })
@@ -149,7 +152,11 @@ export const useShadow = (
           // Circular "tube" (plant/tree shadow)
           const start = shadow.canopyRadius;           // begin beyond caster canopy
           const end = shadow.shadowLength;
-          const halfWidth = Math.max(shadow.canopyRadius, 1); // avoid zero width
+
+          const elev = Math.max(0, sunPosition.elevation);
+          const MIN_WIDTH = 14;                       // px: prevents needle-thin tubes
+          const widen = 1 + (30 / Math.max(8, elev)); // stronger widening at low elevation
+          const halfWidth = Math.max(MIN_WIDTH, shadow.canopyRadius * widen);
 
           if (along > start && along < end && perp < halfWidth) {
             shadedIds.push(target._id);

@@ -40,6 +40,21 @@ body {
   margin-top: 20px;
 }
 
+.garden-canvas {
+  position: relative;
+  width: 100%;
+  min-height: 100px;
+  isolation: isolate;
+  background: rgba(255,255,255,0.001);
+}
+
+.garden-shadows {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 500;;
+}
+
 /* Individual garden bed boxes */
 .bed-box {
   display: flex;
