@@ -26,6 +26,8 @@ interface BedProps {
   sunDirection?: { elevation: number; azimuth: number } | null;
   simulatedDate: Date;
   shadedIds: string[];
+  dayWeather?: DayWeather | null;
+  soil?: { moistureMm: number; capacityMm?: number; percolationMmPerDay?: number } | null;
 }
 
 function mergeRefs<T>(...refs: Array<React.Ref<T> | undefined>) {

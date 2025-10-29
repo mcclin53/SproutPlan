@@ -12,6 +12,10 @@ interface BasePlant {
   baseGrowthRate?: number;
   maxHeight?: number;
   maxCanopyRadius?: number;
+  tempMin?: number;
+  tempMax?: number;
+  waterMin?: number;
+  waterMax?: number;
 }
 
 interface PlantInstance {
@@ -33,6 +37,8 @@ interface Props {
   simulatedDate?: Date;
   shadedIds: string[];
   isShaded?: boolean;
+  dayWeather?: { dateISO: string;tMeanC: number; tMinC: number; tMaxC: number; precipMm: number; et0Mm?: number; } | null;
+  soil?: { moistureMm: number };
 }
 
 const BASE_URL = (import.meta.env.VITE_API_URL as string) || "http://localhost:3001";
@@ -47,6 +53,8 @@ export default function PlantInstanceComponent({
   simulatedDate,
   shadedIds,
   isShaded = false,
+  dayWeather,
+  soil,
 }: Props) {
   const [failedImages, setFailedImages] = useState(false);
 
@@ -62,12 +70,14 @@ export default function PlantInstanceComponent({
     return {
         _id: plantInstance._id,
         name: base.name,
-        // defaults if DB doesn’t have them:
         sunReq: base.sunReq ?? 8,             // hours/day for 100% efficiency
         baseGrowthRate: base.baseGrowthRate ?? 1, // size units/day @ 100%
         height: plantInstance.height ?? 0,
         canopyRadius: plantInstance.canopyRadius ?? 0,
-        // NOTE: we no longer include caps here—server clamps on midnight apply
+        tempMin: base.tempMin ?? 10,
+        tempMax: base.tempMax ?? 35,
+        waterMin: base.waterMin ?? 10,
+        waterMax: base.waterMax ?? 50,
       };
     }, [
       plantInstance._id,
@@ -99,7 +109,16 @@ export default function PlantInstanceComponent({
     persist: true,
     bedIdByPlant,
     modelVersion: "growth-v2-size-per-day",
-    buildInputsForPlant: (p) => ({ sunReq: p.sunReq, baseGrowthRate: p.baseGrowthRate }),
+    buildInputsForPlant: (p) => ({ 
+      sunReq: p.sunReq,
+      baseGrowthRate: p.baseGrowthRate,
+      tMeanC: dayWeather?.tMeanC ?? null,
+      tMinC: dayWeather?.tMinC ?? null,
+      tMaxC: dayWeather?.tMaxC ?? null,
+      precipMm: dayWeather?.precipMm ?? null,
+      et0Mm: dayWeather?.et0Mm ?? null,
+      soilMoistureMm: soil?.moistureMm ?? null,
+     }),
   });
 
   const grown = grownPlants[0];

@@ -17,6 +17,14 @@ import { useShadow } from "../hooks/useShadow";
 import { useSunData } from "../hooks/useSunData";
 import { TimeController } from "./TimeController";
 import SunSimulator from "./SunSimulator";
+import Weather from "./Weather";
+import { useWeather } from "../hooks/useWeather";
+import { useWater } from "../hooks/useWater";
+// import { useTemperature } from "../hooks/useTemperature";
+
+  // Traverse City, MI (example coords)
+  const GARDEN_LAT = 44.7629;
+  const GARDEN_LON = -85.6210;
 
 export default function Garden() {
   const [localSimulatedDate, setLocalSimulatedDate] = useState(new Date());
@@ -24,9 +32,7 @@ export default function Garden() {
     setLocalSimulatedDate(date);
   }, []);
 
-  // Traverse City, MI (example coords)
-  const GARDEN_LAT = 44.7629;
-  const GARDEN_LON = -85.6210;
+  const { day: dayWeather } = useWeather(GARDEN_LAT, GARDEN_LON, localSimulatedDate);
 
   // Apollo
   const { loading: bedsLoading, error: bedsError, data: bedsData } = useQuery(GET_BEDS);
@@ -41,6 +47,15 @@ export default function Garden() {
   // Local drag state for beds
   const [dragBeds, setDragBeds] = useState<DragBed[]>([]);
   const { beds, moveBed, setBeds } = useDragBed(dragBeds);
+
+  const {
+    soil, waterEff, irrigate
+  } = useWater({
+    bedId: "garden-default",
+    day: dayWeather,
+    initialSoil: { capacityMm: 60, moistureMm: 36, percolationMmPerDay: 2 },
+    waterUseFactor: 1.0,
+    });
 
   // Keep drag state in sync with server beds
   useEffect(() => {
@@ -225,6 +240,14 @@ export default function Garden() {
           ))}
         </div>
 
+        <div style={{ position: "fixed", right: 16, top: 16, width: 300 }}>
+        <Weather lat={GARDEN_LAT} lon={GARDEN_LON} onIrrigate={(mm) => irrigate(mm)} />
+        <div style={{ marginTop: 8, fontSize: 12 }}>
+          <div><strong>Soil</strong> — {soil.moistureMm.toFixed(1)} / {soil.capacityMm} mm</div>
+          <div>Water efficiency (bed-level): {waterEff.toFixed(2)}</div>
+        </div>
+      </div>
+
         {/* Garden beds */}
         <div className={` garden ${isNight ? "night" : ""}`}>
           <div className="garden-canvas">
@@ -235,6 +258,8 @@ export default function Garden() {
               sunDirection={sunDirection}
               simulatedDate={localSimulatedDate}
               shadedIds={shadowData.shadedPlants}
+              dayWeather={dayWeather}
+              soil={soil}
               onAddBasePlantsToBed={(bedId, basePlantIds, positions) => {
                 addPlantsToBed(bedId, basePlantIds, positions, (updatedBed) => {
                   setDragBeds(prev =>

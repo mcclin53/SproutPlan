@@ -22,6 +22,7 @@ interface ShadowVector {
   shadowLength: number;     // px
   canopyRadius?: number;    // px (for plant/tree shadows)
   width?: number; depth?: number;           // px (for structures)
+  casterHeightCm?: number;
 }
 
 interface ShadowData {
@@ -102,6 +103,7 @@ export const useShadow = (
             shadowEndY: obj.y + dirY * totalLength,
             shadowLength: totalLength,
             canopyRadius: casterRadiusPx, // stored in px
+            casterHeightCm: obj.height,
           } as ShadowVector & { startX: number; startY: number };
         } else if (obj.type === "structure") {
           return {
@@ -135,45 +137,85 @@ export const useShadow = (
 
     const shadedIds: string[] = [];
 
-    // Overlap test
-    sceneObjects.forEach(target => {
-      shadowVectors.forEach(shadow => {
-        if (shadow._id === target._id) return; // a plant doesn't shade itself
+// Precompute once (right after you compute radElevation)
+const tanElev = Math.tan(radElevation);
 
-        const dx = target.x - shadow.x;
-        const dy = target.y - shadow.y;
+// Overlap test (use canopy-edge as origin)
+sceneObjects.forEach(target => {
+  shadowVectors.forEach(shadow => {
+    if (shadow._id === target._id) return; // no self-shade
 
-        // Distance along the shadow axis (positive = down-shadow)
-        const along = dx * dirX + dy * dirY;
-        // Perpendicular distance from shadow axis
-        const perp = Math.abs(-dirY * dx + dirX * dy);
+    // ---- Plant/Tree "tube" shadows ----
+    if (shadow.canopyRadius != null) {
+      // Tube origin at canopy edge
+      const sx = shadow.startX ?? shadow.x;
+      const sy = shadow.startY ?? shadow.y;
 
-        if (shadow.canopyRadius != null) {
-          // Circular "tube" (plant/tree shadow)
-          const start = shadow.canopyRadius;           // begin beyond caster canopy
-          const end = shadow.shadowLength;
+      // Tube length measured FROM canopy edge (px)
+      const L = Math.max(0, shadow.shadowLength - (shadow.canopyRadius ?? 0));
+      if (L <= 0) return;
 
-          const elev = Math.max(0, sunPosition.elevation);
-          const MIN_WIDTH = 14;                       // px: prevents needle-thin tubes
-          const widen = 1 + (30 / Math.max(8, elev)); // stronger widening at low elevation
-          const halfWidth = Math.max(MIN_WIDTH, shadow.canopyRadius * widen);
+      // Axis unit vector (same as dirX/dirY)
+      const ux = dirX, uy = dirY;
 
-          if (along > start && along < end && perp < halfWidth) {
-            shadedIds.push(target._id);
-          }
-        } else if (shadow.width && shadow.depth) {
-          // Axis-aligned rectangle from caster to shadow end (structure)
-          const minX = Math.min(shadow.x, shadow.shadowEndX) - (shadow.width ?? 0) / 2;
-          const maxX = Math.max(shadow.x, shadow.shadowEndX) + (shadow.width ?? 0) / 2;
-          const minY = Math.min(shadow.y, shadow.shadowEndY) - (shadow.depth ?? 0) / 2;
-          const maxY = Math.max(shadow.y, shadow.shadowEndY) + (shadow.depth ?? 0) / 2;
+      // Vector from tube start -> target center
+      const px = target.x - sx;
+      const py = target.y - sy;
 
-          if (target.x >= minX && target.x <= maxX && target.y >= minY && target.y <= maxY) {
-            shadedIds.push(target._id);
-          }
-        }
-      });
-    });
+      // IMPORTANT: use raw projection to enforce direction and segment bounds
+      const alongRaw = px * ux + py * uy; // px
+      if (alongRaw < 0 || alongRaw > L) return; // not down-shadow (or past end)
+
+      // Closest point on axis segment is at t = alongRaw (since within [0..L])
+      const t = alongRaw;
+
+      // Perpendicular distance to axis at that point
+      const cx = px - ux * t;
+      const cy = py - uy * t;
+      const distToAxis = Math.hypot(cx, cy);
+
+      // Tube half-width (wider at low sun)
+      const elev = Math.max(0, sunPosition.elevation);
+      const MIN_WIDTH = 14;
+      const widen = 1 + (30 / Math.max(8, elev));
+      const tubeHalfWidth = Math.max(MIN_WIDTH, (shadow.canopyRadius ?? 0) * widen);
+
+      // Include the target's own radius so edge-overlap counts
+      const targetRadiusPx = (target.canopyRadius ?? 0) * PX_PER_CM;
+      const effectiveHalfWidth = tubeHalfWidth + targetRadiusPx;
+
+      if (distToAxis > effectiveHalfWidth) return; // misses laterally
+
+      // Height-aware occlusion at the closest point
+      const dPx = t;                   // px beyond canopy edge
+      const dCm = dPx / PX_PER_CM;     // convert to cm
+      const casterH = shadow.casterHeightCm ?? 0; // cm (set when building vectors)
+      const shadowHeightAtPoint = Math.max(0, casterH - dCm * tanElev);
+
+      const targetH = target.height ?? 0; // cm
+      if (targetH <= shadowHeightAtPoint) {
+        shadedIds.push(target._id);
+      }
+
+      return; // done with plant/tree branch
+    }
+
+    // ---- Rectangular structure shadows (unchanged) ----
+    if (shadow.width && shadow.depth) {
+      const minX = Math.min(shadow.x, shadow.shadowEndX) - (shadow.width ?? 0) / 2;
+      const maxX = Math.max(shadow.x, shadow.shadowEndX) + (shadow.width ?? 0) / 2;
+      const minY = Math.min(shadow.y, shadow.shadowEndY) - (shadow.depth ?? 0) / 2;
+      const maxY = Math.max(shadow.y, shadow.shadowEndY) + (shadow.depth ?? 0) / 2;
+
+      if (target.x >= minX && target.x <= maxX && target.y >= minY && target.y <= maxY) {
+        shadedIds.push(target._id);
+      }
+    }
+  });
+});
+
+
+
 
     const shadedPlants = Array.from(new Set(shadedIds));
 

@@ -11,7 +11,10 @@ const plantSchema = new mongoose.Schema({
   baseGrowthRate: { type: Number },
   currentGrowthRate: { type: Number },
   maturityDays: { type: Number },
-  waterReq: { type: String},
+  waterMax: { type: Number },
+  waterMin: { type: Number },
+  tempMax: { type: Number },
+  tempMin: { type: Number },
   nutrients:{ type: String},
   pH: { type: Number},
   spacing: { type: Number},
@@ -20,11 +23,8 @@ const plantSchema = new mongoose.Schema({
   diseases: { type: [String]},
   pests: {type: [String]},
   daysToHarvest: { type: Number},
-  harvestAvg: { type: Number},
   perennial: { type: Boolean },
   annual: { type: Boolean},
-  frostZone: { type: String},
-  idealTemp: { type: Number},
   comments: {type: String}
 });
 
