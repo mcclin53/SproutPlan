@@ -28,6 +28,7 @@ interface BedProps {
   shadedIds: string[];
   dayWeather?: DayWeather | null;
   soil?: { moistureMm: number; capacityMm?: number; percolationMmPerDay?: number } | null;
+  onPlantClick?: (payload: { plantInstance: any; bedId: string }) => void;
 }
 
 function mergeRefs<T>(...refs: Array<React.Ref<T> | undefined>) {
@@ -44,7 +45,7 @@ function mergeRefs<T>(...refs: Array<React.Ref<T> | undefined>) {
   };
 }
 
-export default function Bed({ bed, onAddBasePlantsToBed, onRemoveBed, moveBed, movePlantInBed, getPlantCoordinates, handleRemovePlant, sunDirection, simulatedDate, shadedIds, }: BedProps) {
+export default function Bed({ bed, onAddBasePlantsToBed, onRemoveBed, moveBed, movePlantInBed, getPlantCoordinates, handleRemovePlant, sunDirection, simulatedDate, shadedIds, onPlantClick}: BedProps) {
   const dropRef = useRef<HTMLDivElement>(null)
   const [movePlantInBedMutation] = useMutation(MOVE_PLANT_IN_BED);
 
@@ -115,6 +116,7 @@ const [, drop] = useDrop(() => ({
             simulatedDate={simulatedDate}
             shadedIds={shadedIds}
             isShaded={shadedIds.includes(plantInstance._id)}
+            onPlantClick={onPlantClick}
           />
         ))
       ) : (

@@ -295,5 +295,5 @@ export function useGrowPlant(
     prevGrownRef.current = plants;
   }, [plants]);
 
-  return { grownPlants, sunlightHours };
+  return { grownPlants, sunlightHours, tempOkHours };
 }

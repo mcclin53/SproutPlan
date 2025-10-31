@@ -20,6 +20,7 @@ import SunSimulator from "./SunSimulator";
 import Weather from "./Weather";
 import { useWeather } from "../hooks/useWeather";
 import { useWater } from "../hooks/useWater";
+import PlantStats from "./PlantStats";
 // import { useTemperature } from "../hooks/useTemperature";
 
   // Traverse City, MI (example coords)
@@ -31,6 +32,8 @@ export default function Garden() {
   const handleDateChange = useCallback((date: Date) => {
     setLocalSimulatedDate(date);
   }, []);
+  
+  const [selected, setSelected] = useState<{ plant: any; bedId: string } | null>(null);
 
   const { day: dayWeather } = useWeather(GARDEN_LAT, GARDEN_LON, localSimulatedDate);
 
@@ -47,6 +50,8 @@ export default function Garden() {
   // Local drag state for beds
   const [dragBeds, setDragBeds] = useState<DragBed[]>([]);
   const { beds, moveBed, setBeds } = useDragBed(dragBeds);
+
+  
 
   const {
     soil, waterEff, irrigate
@@ -276,6 +281,7 @@ export default function Garden() {
                         return { ...b, plantInstances: mergedPlantInstances };
                       })
                     );
+                    
                   });
                 }}
                 onRemoveBed={() => removeBed(bed._id)}
@@ -283,6 +289,7 @@ export default function Garden() {
                 movePlantInBed={movePlantInBed}
                 getPlantCoordinates={getPlantCoordinates}
                 handleRemovePlant={handleRemovePlant}
+                onPlantClick={({ plantInstance, bedId }) => setSelected({ plant: plantInstance, bedId })}
               />
               ))}
               {!isNight && (
@@ -309,6 +316,16 @@ export default function Garden() {
           </div>
         </div>
       </DndProvider>
+
+      {selected && ( 
+      <PlantStats
+        plant={selected.plant}
+        bedId={selected.bedId}
+        soil={{ moistureMm: soil.moistureMm, capacityMm: soil.capacityMm }} // from useWater
+        simulatedDate={localSimulatedDate}
+        onClose={() => setSelected(null)}   
+      />
+    )}
 
       {/* Clear all beds button */}
       {beds.length > 0 && (

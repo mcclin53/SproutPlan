@@ -39,6 +39,7 @@ interface Props {
   isShaded?: boolean;
   dayWeather?: { dateISO: string;tMeanC: number; tMinC: number; tMaxC: number; precipMm: number; et0Mm?: number; } | null;
   soil?: { moistureMm: number };
+  onPlantClick?: (payload: { plantInstance: PlantInstance; bedId: string }) => void;
 }
 
 const BASE_URL = (import.meta.env.VITE_API_URL as string) || "http://localhost:3001";
@@ -55,6 +56,7 @@ export default function PlantInstanceComponent({
   isShaded = false,
   dayWeather,
   soil,
+  onPlantClick,
 }: Props) {
   const [failedImages, setFailedImages] = useState(false);
 
@@ -155,6 +157,7 @@ export default function PlantInstanceComponent({
     <div
       className="plant-wrapper"
       ref={ref}
+      onClick={() => onPlantClick?.({ plantInstance, bedId })}
       style={{
         position: "absolute",
         top: plantInstance.y,
