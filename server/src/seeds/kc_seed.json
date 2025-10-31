@@ -1,0 +1,482 @@
+[
+  {
+    "name": "Tomato",
+    "kcProfile": {
+      "initial": 0.6,
+      "mid": 1.15,
+      "late": 0.8
+    },
+    "source": "FAO56",
+    "notes": "High mid-season demand (fruit set)."
+  },
+  {
+    "name": "Pepper (Bell/Chili)",
+    "kcProfile": {
+      "initial": 0.6,
+      "mid": 1.05,
+      "late": 0.9
+    },
+    "source": "FAO56",
+    "notes": "Moderate\u2013high mid-season."
+  },
+  {
+    "name": "Eggplant",
+    "kcProfile": {
+      "initial": 0.5,
+      "mid": 1.05,
+      "late": 0.85
+    },
+    "source": "FAO56",
+    "notes": "Similar to pepper."
+  },
+  {
+    "name": "Lettuce",
+    "kcProfile": {
+      "initial": 0.7,
+      "mid": 1.0,
+      "late": 0.95
+    },
+    "source": "FAO56",
+    "notes": "Short cycle, high canopy density."
+  },
+  {
+    "name": "Spinach",
+    "kcProfile": {
+      "initial": 0.5,
+      "mid": 1.0,
+      "late": 0.95
+    },
+    "source": "FAO56",
+    "notes": "Cool-season leafy green."
+  },
+  {
+    "name": "Kale",
+    "kcProfile": {
+      "initial": 0.7,
+      "mid": 1.05,
+      "late": 0.95
+    },
+    "source": "FAO56",
+    "notes": "Similar to cabbage."
+  },
+  {
+    "name": "Cabbage",
+    "kcProfile": {
+      "initial": 0.7,
+      "mid": 1.05,
+      "late": 0.95
+    },
+    "source": "FAO56",
+    "notes": "Dense canopy at mid-season."
+  },
+  {
+    "name": "Broccoli",
+    "kcProfile": {
+      "initial": 0.7,
+      "mid": 1.0,
+      "late": 0.95
+    },
+    "source": "FAO56",
+    "notes": "Similar to cabbage but slightly lower mid."
+  },
+  {
+    "name": "Cauliflower",
+    "kcProfile": {
+      "initial": 0.6,
+      "mid": 1.0,
+      "late": 0.9
+    },
+    "source": "FAO56",
+    "notes": "Moderate mid-season demand."
+  },
+  {
+    "name": "Carrot",
+    "kcProfile": {
+      "initial": 0.7,
+      "mid": 1.05,
+      "late": 0.95
+    },
+    "source": "FAO56",
+    "notes": "Root crop; consistent demand."
+  },
+  {
+    "name": "Beet",
+    "kcProfile": {
+      "initial": 0.6,
+      "mid": 1.05,
+      "late": 0.9
+    },
+    "source": "FAO56",
+    "notes": "Root crop; similar to carrot."
+  },
+  {
+    "name": "Radish",
+    "kcProfile": {
+      "initial": 0.7,
+      "mid": 1.0,
+      "late": 0.9
+    },
+    "source": "FAO56",
+    "notes": "Very short cycle."
+  },
+  {
+    "name": "Onion",
+    "kcProfile": {
+      "initial": 0.7,
+      "mid": 1.05,
+      "late": 0.85
+    },
+    "source": "FAO56",
+    "notes": "Shallow roots; frequent irrigation."
+  },
+  {
+    "name": "Garlic",
+    "kcProfile": {
+      "initial": 0.7,
+      "mid": 1.0,
+      "late": 0.8
+    },
+    "source": "FAO56",
+    "notes": "Similar to onion; lower late."
+  },
+  {
+    "name": "Leek",
+    "kcProfile": {
+      "initial": 0.7,
+      "mid": 1.05,
+      "late": 0.9
+    },
+    "source": "FAO56",
+    "notes": "Longer cycle allium."
+  },
+  {
+    "name": "Potato",
+    "kcProfile": {
+      "initial": 0.5,
+      "mid": 1.15,
+      "late": 0.75
+    },
+    "source": "FAO56",
+    "notes": "High mid-season demand."
+  },
+  {
+    "name": "Sweet Potato",
+    "kcProfile": {
+      "initial": 0.5,
+      "mid": 1.15,
+      "late": 0.8
+    },
+    "source": "FAO56",
+    "notes": "Vining habit; high mid-season."
+  },
+  {
+    "name": "Cucumber",
+    "kcProfile": {
+      "initial": 0.6,
+      "mid": 1.0,
+      "late": 0.8
+    },
+    "source": "FAO56",
+    "notes": "Cucurbit; good ground cover."
+  },
+  {
+    "name": "Zucchini (Courgette)",
+    "kcProfile": {
+      "initial": 0.5,
+      "mid": 1.0,
+      "late": 0.8
+    },
+    "source": "FAO56",
+    "notes": "Cucurbit; prolific fruiting."
+  },
+  {
+    "name": "Pumpkin",
+    "kcProfile": {
+      "initial": 0.5,
+      "mid": 1.0,
+      "late": 0.8
+    },
+    "source": "FAO56",
+    "notes": "Long season; sprawling vines."
+  },
+  {
+    "name": "Melon (Cantaloupe)",
+    "kcProfile": {
+      "initial": 0.5,
+      "mid": 1.0,
+      "late": 0.8
+    },
+    "source": "FAO56",
+    "notes": "Cucurbit; similar to watermelon."
+  },
+  {
+    "name": "Watermelon",
+    "kcProfile": {
+      "initial": 0.5,
+      "mid": 1.05,
+      "late": 0.8
+    },
+    "source": "FAO56",
+    "notes": "High transpiration at mid-season."
+  },
+  {
+    "name": "Corn (Sweet)",
+    "kcProfile": {
+      "initial": 0.3,
+      "mid": 1.2,
+      "late": 0.35
+    },
+    "source": "FAO56",
+    "notes": "Peaks near tasseling/silking."
+  },
+  {
+    "name": "Peas",
+    "kcProfile": {
+      "initial": 0.5,
+      "mid": 1.05,
+      "late": 0.8
+    },
+    "source": "FAO56",
+    "notes": "Cool-season legume."
+  },
+  {
+    "name": "Green Bean",
+    "kcProfile": {
+      "initial": 0.4,
+      "mid": 1.05,
+      "late": 0.8
+    },
+    "source": "FAO56",
+    "notes": "Bush or pole types."
+  },
+  {
+    "name": "Lima Bean",
+    "kcProfile": {
+      "initial": 0.4,
+      "mid": 1.05,
+      "late": 0.8
+    },
+    "source": "FAO56",
+    "notes": "Similar to green bean."
+  },
+  {
+    "name": "Soybean",
+    "kcProfile": {
+      "initial": 0.4,
+      "mid": 1.15,
+      "late": 0.5
+    },
+    "source": "FAO56",
+    "notes": "Agronomic legume; high mid."
+  },
+  {
+    "name": "Strawberry",
+    "kcProfile": {
+      "initial": 0.4,
+      "mid": 0.85,
+      "late": 0.75
+    },
+    "source": "FAO56",
+    "notes": "Lower mid due to canopy structure."
+  },
+  {
+    "name": "Raspberry",
+    "kcProfile": {
+      "initial": 0.4,
+      "mid": 0.95,
+      "late": 0.85
+    },
+    "source": "CIMIS",
+    "notes": "Cane fruit; regional tables."
+  },
+  {
+    "name": "Blueberry",
+    "kcProfile": {
+      "initial": 0.5,
+      "mid": 0.9,
+      "late": 0.85
+    },
+    "source": "CIMIS",
+    "notes": "Shrub; acidic soils."
+  },
+  {
+    "name": "Grape (Table/Wine)",
+    "kcProfile": {
+      "initial": 0.3,
+      "mid": 0.7,
+      "late": 0.5
+    },
+    "source": "FAO56",
+    "notes": "Sparse canopy; trellising affects Kc."
+  },
+  {
+    "name": "Apple",
+    "kcProfile": {
+      "initial": 0.4,
+      "mid": 1.0,
+      "late": 0.8
+    },
+    "source": "FAO56",
+    "notes": "Full-canopy orchard values."
+  },
+  {
+    "name": "Pear",
+    "kcProfile": {
+      "initial": 0.4,
+      "mid": 1.0,
+      "late": 0.85
+    },
+    "source": "FAO56",
+    "notes": "Similar to apple."
+  },
+  {
+    "name": "Peach/Nectarine",
+    "kcProfile": {
+      "initial": 0.4,
+      "mid": 1.05,
+      "late": 0.85
+    },
+    "source": "FAO56",
+    "notes": "Deciduous orchard."
+  },
+  {
+    "name": "Plum",
+    "kcProfile": {
+      "initial": 0.4,
+      "mid": 1.0,
+      "late": 0.85
+    },
+    "source": "FAO56",
+    "notes": "Deciduous orchard."
+  },
+  {
+    "name": "Cherry (Sweet)",
+    "kcProfile": {
+      "initial": 0.4,
+      "mid": 1.05,
+      "late": 0.9
+    },
+    "source": "CIMIS",
+    "notes": "Higher mid-season in warm areas."
+  },
+  {
+    "name": "Citrus (Orange/Lemon)",
+    "kcProfile": {
+      "initial": 0.7,
+      "mid": 1.0,
+      "late": 0.9
+    },
+    "source": "FAO56",
+    "notes": "Evergreen; less stage variability."
+  },
+  {
+    "name": "Avocado",
+    "kcProfile": {
+      "initial": 0.6,
+      "mid": 1.05,
+      "late": 0.95
+    },
+    "source": "CIMIS",
+    "notes": "High year-round transpiration."
+  },
+  {
+    "name": "Olive",
+    "kcProfile": {
+      "initial": 0.4,
+      "mid": 0.75,
+      "late": 0.6
+    },
+    "source": "FAO56",
+    "notes": "Drought-tolerant tree crop."
+  },
+  {
+    "name": "Basil",
+    "kcProfile": {
+      "initial": 0.7,
+      "mid": 1.0,
+      "late": 0.9
+    },
+    "source": "Literature",
+    "notes": "Leafy herb; frequent harvests."
+  },
+  {
+    "name": "Parsley",
+    "kcProfile": {
+      "initial": 0.6,
+      "mid": 1.0,
+      "late": 0.9
+    },
+    "source": "Literature",
+    "notes": "Herb; moderate demand."
+  },
+  {
+    "name": "Cilantro (Coriander)",
+    "kcProfile": {
+      "initial": 0.6,
+      "mid": 1.0,
+      "late": 0.9
+    },
+    "source": "Literature",
+    "notes": "Short cycle herb."
+  },
+  {
+    "name": "Dill",
+    "kcProfile": {
+      "initial": 0.5,
+      "mid": 0.95,
+      "late": 0.85
+    },
+    "source": "Literature",
+    "notes": "Feathery leaves; moderate."
+  },
+  {
+    "name": "Mint",
+    "kcProfile": {
+      "initial": 0.7,
+      "mid": 1.05,
+      "late": 0.95
+    },
+    "source": "Literature",
+    "notes": "Rhizomatous, high transpiration."
+  },
+  {
+    "name": "Rosemary",
+    "kcProfile": {
+      "initial": 0.3,
+      "mid": 0.5,
+      "late": 0.45
+    },
+    "source": "Literature",
+    "notes": "Mediterranean shrub; drought-tolerant."
+  },
+  {
+    "name": "Thyme",
+    "kcProfile": {
+      "initial": 0.3,
+      "mid": 0.5,
+      "late": 0.45
+    },
+    "source": "Literature",
+    "notes": "Low leaf area; drought tolerant."
+  },
+  {
+    "name": "Sage",
+    "kcProfile": {
+      "initial": 0.3,
+      "mid": 0.55,
+      "late": 0.5
+    },
+    "source": "Literature",
+    "notes": "Woody herb."
+  },
+  {
+    "name": "Lavender",
+    "kcProfile": {
+      "initial": 0.3,
+      "mid": 0.5,
+      "late": 0.45
+    },
+    "source": "Literature",
+    "notes": "Very drought-tolerant ornamental/herb."
+  }
+]

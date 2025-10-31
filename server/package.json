@@ -9,6 +9,7 @@
     "start": "node dist/server.js",
     "watch": "nodemon dist/server.js",
     "seed": "node dist/seeds/seedDatabase.js",
+    "seedKc": "node dist/seeds/updateKc.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],

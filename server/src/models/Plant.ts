@@ -25,7 +25,15 @@ const plantSchema = new mongoose.Schema({
   daysToHarvest: { type: Number},
   perennial: { type: Boolean },
   annual: { type: Boolean},
-  comments: {type: String}
+  comments: {type: String},
+  kcProfile: {
+  initial: { type: Number },
+  mid:     { type: Number },
+  late:    { type: Number },
+  },
+  kcInitial: {type: Number},
+  kcMid: {type: Number},
+  kcLate: {type: Number}
 });
 
 export default mongoose.model("Plant", plantSchema);

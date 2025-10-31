@@ -9,6 +9,10 @@ interface Plant {
   baseGrowthRate: number; // inches per day at full efficiency
   height: number;
   canopyRadius: number;
+  waterMin?: number;
+  waterMax?: number;
+  tempMin?: number;
+  tempMax?: number;
   }
 
 interface SunPosition {
@@ -27,6 +31,30 @@ interface GrowOptions {
   modelVersion?: string;
   buildInputsForPlant?: (plant: Plant) => any;
   onAppliedOne?: (plantId: string, newHeight: number, newCanopy: number) => void;
+  soilMoistureByBed?: Record<string, number>;
+  hourlyTempC?: number[];
+}
+
+function clamp01(x: number) {
+  return Math.max(0, Math.min(1, x));
+}
+
+function waterEffFor(
+  plant: Plant,
+  bedId: string,
+  waterEffByBed?: Record<string, number>,
+  soilMoistureByBed?: Record<string, number>
+) {
+  if (waterEffByBed && bedId in waterEffByBed) return clamp01(waterEffByBed[bedId]);
+
+  const m = soilMoistureByBed?.[bedId];
+  const min = plant.waterMin;
+  const max = plant.waterMax;
+  if (m == null || min == null || max == null || min >= max) return 1;
+
+  if (m <= min) return 0;
+  if (m >= max) return 1;
+  return clamp01((m - min) / Math.max(1e-6, max - min));
 }
 
 export function useGrowPlant(
@@ -48,6 +76,7 @@ export function useGrowPlant(
 
   const [grownPlants, setGrownPlants] = useState<Plant[]>(plants);
   const [sunlightHours, setSunlightHours] = useState<Record<string, number>>({});
+  const [tempOkHours, setTempOkHours] = useState<Record<string, number>>({});
 
   const [applyMidnightGrowth] = useMutation(APPLY_MIDNIGHT_GROWTH); 
 
@@ -71,6 +100,7 @@ export function useGrowPlant(
       if (resetDaily && !simulateMidnight) {
         console.log("New simulated day → resetting sunlight hours");
         setSunlightHours({});
+        setTempOkHours({});
       }
       return;
     }
@@ -95,7 +125,34 @@ export function useGrowPlant(
         }
     return next;
     });
-  }, [plants, shadedIds, sun?.elevation, simulatedDate, resetDaily, simulateMidnight]);
+
+    if (options.hourlyTempC && options.hourlyTempC.length >= 24) {
+      const hourIdx = simulatedDate.getHours();
+      const tempNow = options.hourlyTempC[hourIdx];
+
+      setTempOkHours(prev => {
+        const next = { ...prev };
+        for (const p of plants) {
+          const tmin = p.tempMin ?? -Infinity;
+          const tmax = p.tempMax ?? Infinity;
+          const ok = tempNow >= tmin && tempNow <= tmax;
+          if (ok) {
+            next[p._id] = (next[p._id] ?? 0) + deltaHours;
+          }
+          console.log(
+            "[TempHourly]",
+            p.name,
+            `h=${hourIdx}`,
+            `T=${tempNow?.toFixed(1)}°C`,
+            `range=${tmin}-${tmax}`,
+            `ok=${ok}`,
+            `acc=${(next[p._id] ?? 0).toFixed(2)}h`
+          );
+        }
+        return next;
+      });
+    }
+  }, [plants, shadedIds, sun?.elevation, simulatedDate, resetDaily, simulateMidnight, options.hourlyTempC]);
 
   // Growth using accumulated sunlight
   useEffect(() => {
@@ -110,26 +167,44 @@ export function useGrowPlant(
     lastMidnightAppliedKeyRef.current = midnightKey;
 
     const snapshotSunHours = { ...sunlightHours };
+    const snapshotTempOk = { ...tempOkHours };
 
     // If persistence is disabled, keep old local-only behavior: compute a client delta and clamp visually.
     if (!persist) {
       // Minimal local apply (does NOT clamp to server caps; purely visual)
-    const updated = plants.map(plant => {
-    const hours = snapshotSunHours[plant._id] ?? 0;
-    const sunReq = plant.sunReq || 0;
-    const eff = sunReq > 0 ? Math.min(1, hours / sunReq) : 0;
+      const updated = plants.map(plant => {
+      const hours = snapshotSunHours[plant._id] ?? 0;
+      const sunReq = plant.sunReq || 0;
+      const sunEff = sunReq > 0 ? Math.min(1, hours / sunReq) : 0;
+
+      //growth by temperature
+      const hoursTempOk = snapshotTempOk[plant._id] ?? 0;
+      const tempEff = clamp01(hoursTempOk / 24);
+
+    //water efficiency integration
+      const bedId = bedIdByPlant[plant._id];
+      const waterEff = waterEffFor(plant, bedId, options.soilMoistureByBed);
     
     // height/day in size units (e.g., inches) under full efficiency
-    const baseRate = plant.baseGrowthRate || 0;
-    const dH = baseRate * eff;
+      const baseRate = plant.baseGrowthRate || 0;
+
+      const overallEff = sunEff * waterEff;
+      const dH = baseRate * overallEff;
         // derive canopy/day proportionally (if you want; otherwise same as baseRate)
-    const dC = dH; // simple: canopy grows at same unit rate
+      const dC = dH; // simple: canopy grows at same unit rate
 
-    const prev = prevGrownRef.current.find(x => x._id === plant._id) ?? plant;
-    const newH = (prev.height ?? 0) + dH;
-    const newC = (prev.canopyRadius ?? 0) + dC;
+      const prev = prevGrownRef.current.find(x => x._id === plant._id) ?? plant;
+      const newH = (prev.height ?? 0) + dH;
+      const newC = (prev.canopyRadius ?? 0) + dC;
+      
 
-        // console.log(`[LOCAL MIDNIGHT] ${plant.name}: +${dH.toFixed(2)}h, +can ${dC.toFixed(2)}`);
+      console.log("[Midnight:local]", plant.name, {
+      sunEff: sunEff.toFixed(2),
+      tempEff: tempEff.toFixed(2),
+      waterEff: waterEff.toFixed(2),
+      baseRate,
+      dH: dH.toFixed(2),
+    });
 
     onAppliedOne?.(plant._id, newH, newC);
 
