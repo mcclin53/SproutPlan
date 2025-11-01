@@ -258,11 +258,7 @@ export default function Garden() {
 
         <div style={{ position: "fixed", right: 16, top: 16, width: 300 }}>
         <Weather lat={GARDEN_LAT} lon={GARDEN_LON} onIrrigate={(mm) => irrigate(mm)} />
-        <div style={{ marginTop: 8, fontSize: 12 }}>
-          <div><strong>Soil</strong> — {soil.moistureMm.toFixed(1)} / {soil.capacityMm} mm</div>
-          <div>Water efficiency (bed-level): {waterEff.toFixed(2)}</div>
         </div>
-      </div>
 
         {/* Garden beds */}
         <div className={` garden ${isNight ? "night" : ""}`}>

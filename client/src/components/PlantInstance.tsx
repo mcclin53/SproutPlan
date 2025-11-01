@@ -205,7 +205,7 @@ export default function PlantInstanceComponent({
       <img
         src={imageSrc}
         alt={plantInstance.basePlant.name}
-        title={`${plantInstance.basePlant.name} (h: ${grown?.height?.toFixed(1)}", canopy: ${grown?.canopyRadius?.toFixed(1)}")`}
+        title="Click for Plant Stats"
         style={{
           width: 40,
           height: 40,
@@ -237,6 +237,7 @@ export default function PlantInstanceComponent({
       />
       <button
         className="remove-plant-button"
+        title="Remove Plant"
         onClick={() => handleRemovePlant(bedId, plantInstance._id)}
       >
         ❌

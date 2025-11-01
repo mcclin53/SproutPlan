@@ -19,7 +19,7 @@ export default function Plant({ plant }: PlantProps) {
   }));
 
   return (
-    <div ref={drag} className="plant-item">
+    <div ref={drag} className="plant-item" title="Drag Plant to Bed">
       {plant.image && (
         <img
           src={`${BASE_URL}${plant.image}`}

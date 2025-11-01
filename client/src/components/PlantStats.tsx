@@ -2,6 +2,8 @@ import React, { useMemo, useState } from "react";
 import { useQuery } from "@apollo/client";
 import { GET_GROWTH_SNAPSHOTS } from "../utils/queries";
 import { computeWaterComfortBand, guessRootDepthM } from "../utils/waterBand";
+import { useDragComponent } from "../hooks/useDragComponent";
+import { dragConfigFrom } from "../utils/dragConfig";
 
 const BASE_URL = (import.meta.env.VITE_API_URL as string) || "http://localhost:3001";
 
@@ -45,6 +47,10 @@ type Props = {
   onClose?: () => void;
   liveHeight?: number;
   liveCanopy?: number;
+  initialPos?: { x: number; y: number };
+  z?: number;
+  grid?: { x: number; y: number };
+  persistKeyPrefix?: string;
 };
 
 function clamp01(x: number) {
@@ -54,17 +60,32 @@ function fmtNum(x: number | undefined | null, d = 2) {
   return x == null ? "—" : x.toFixed(d);
 }
 
-export default function PlantStats({
-  plant,
-  bedId,
-  soil,
-  simulatedDate = new Date(),
-  todaySunHours,
-  todayTempOkHours,
-  onClose,
-  liveCanopy,
-  liveHeight,
-}: Props) {
+export default function PlantStats(props: Props) {
+  const {
+    plant,
+    bedId,
+    soil,
+    simulatedDate = new Date(),
+    todaySunHours,
+    todayTempOkHours,
+    onClose,
+    liveCanopy,
+    liveHeight,
+    initialPos,
+    z,
+    grid,
+    persistKeyPrefix = "PlantStats@",
+  } = props;
+
+  const { rootRef, handleRef, style } = useDragComponent(
+    dragConfigFrom({
+      persistKey: `${persistKeyPrefix}${plant._id}`,
+      initialPos: initialPos ?? { x: 16, y: Math.max(16, window.innerHeight / 2 - 180) },
+      z: z ?? 51,
+      grid: grid ?? { x: 1, y: 1 },
+    })
+  );
+
   const bp = plant.basePlant || ({} as BasePlant);
   const sunReq = bp.sunReq ?? 8;                 // hours/day for 100% efficiency
   const baseGrowthRate = bp.baseGrowthRate ?? 1; // size units/day @ 100%
@@ -167,19 +188,18 @@ export default function PlantStats({
       ? latest.sunlightHours
       : undefined;
 
-  const sunEff =
-    sunReq > 0 && sunHoursForToday != null ? clamp01(sunHoursForToday / sunReq) : 0;
-
+  const sunEff = sunReq > 0 && sunHoursForToday != null ? clamp01(sunHoursForToday / sunReq) : 0;
   const tempEff = clamp01((todayTempOkHours ?? 24) / 24);
 
   const expectedGrowth = baseGrowthRate * sunEff * waterEff * tempEff;
   const face = growthDelta == null ? "😐" : growthDelta + 1e-6 >= expectedGrowth ? "🙂" : "🙁";
 
   return (
-    <div style={plantCardShell}>
-      <div style={plantCardStyle}>
+    <div ref={rootRef} className="card-shell" style={ style }>
+      <div className="stat-card" ref={handleRef as React.MutableRefObject<HTMLDivElement>}>
         {/* Header */}
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        <div 
+          style={{ display: "flex", alignItems: "center", gap: 12, cursor: "move" }}>
           <img
             src={imageSrc}
             alt={bp.name}
@@ -196,7 +216,7 @@ export default function PlantStats({
             }}
           />
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div
+            <h3
               style={{
                 fontWeight: 600,
                 lineHeight: 1.1,
@@ -206,13 +226,13 @@ export default function PlantStats({
               }}
             >
               {bp.name ?? "Plant"}
-            </div>
+            </h3>
             <div style={{ fontSize: 12, color: "#6b7280" }}>
               {daysOld != null ? `${daysOld} days old` : "—"}
             </div>
           </div>
           {onClose && (
-            <button onClick={onClose} aria-label="Close" style={closeBtn} title="Close">
+            <button className="close-btn" onClick={onClose} aria-label="Close" title="Close">
               ✕
             </button>
           )}
@@ -269,36 +289,6 @@ export default function PlantStats({
     </div>
   );
 }
-
-const plantCardShell: React.CSSProperties = {
-  position: "fixed",
-  top: "50%",
-  left: 16,
-  transform: "translateY(-50%)",
-  zIndex: 50,
-  width: 320,
-  maxWidth: "90vw",
-  pointerEvents: "auto",
-};
-
-const plantCardStyle: React.CSSProperties = {
-  padding: 12,
-  borderRadius: 12,
-  background: "#ffffff",
-  boxShadow: "0 10px 30px rgba(0,0,0,0.12)",
-  border: "1px solid #e5e7eb",
-  fontSize: 14,
-  backdropFilter: "blur(4px)",
-};
-
-const closeBtn: React.CSSProperties = {
-  color: "#6b7280",
-  border: "1px solid #e5e7eb",
-  background: "white",
-  borderRadius: 8,
-  padding: "4px 8px",
-  cursor: "pointer",
-};
 
 function Row({
   label,

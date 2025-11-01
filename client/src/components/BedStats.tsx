@@ -1,4 +1,7 @@
-import React from "react";
+import React, { useMemo, useState } from "react";
+import { useQuery } from "@apollo/client";
+import { useDragComponent } from "../hooks/useDragComponent";
+import { dragConfigFrom } from "../utils/dragConfig";
 
 type SoilLike = {
   moistureMm: number;
@@ -13,6 +16,10 @@ type Props = {
   waterMin: number;  // mm (comfort band lower)
   waterMax: number;  // mm (comfort band upper)
   onClose?: () => void;
+  initialPos?: { x: number; y: number };
+  z?: number;
+  grid?: { x: number; y: number };
+  persistKeyPrefix?: string;
 
   // Future extensibility:
   // soilType?: "Loam" | "Sandy loam" | ...
@@ -22,20 +29,36 @@ type Props = {
   // enemies?: string[];    // plant names in this bed that are enemies
 };
 
-export default function BedStats({
-  bedId,
-  bedLabel,
-  soil,
-  waterEff,
-  waterMin,
-  waterMax,
-  onClose,
-}: Props) {
+export default function BedStats(props: Props) {
+    const {
+        bedId,
+        bedLabel,
+        soil,
+        waterEff,
+        waterMin,
+        waterMax,
+        onClose,
+        initialPos,
+        z,
+        grid,
+        persistKeyPrefix = "BedStats@",
+    } = props;
+
+    const { rootRef, handleRef, style } = useDragComponent(
+        dragConfigFrom({
+          persistKey: `${persistKeyPrefix}${bedId}`,
+          initialPos: initialPos ?? { x: 16, y: Math.max(16, window.innerHeight / 2 - 180) },
+          z: z ?? 51,
+          grid: grid ?? { x: 1, y: 1 },
+        })
+      );
+
   return (
-    <div style={shell}>
-      <div style={card}>
+    <div className="card-shell" ref={rootRef} style={style}>
+      <div className="stat-card" ref={handleRef as React.MutableRefObject<HTMLDivElement>}>
         {/* Header */}
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        <div 
+        style={{ display: "flex", alignItems: "center", gap: 12, cursor: "move" }}>
           <div
             style={{
               height: 48,
@@ -53,7 +76,7 @@ export default function BedStats({
             🛏️
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div
+            <h3
               style={{
                 fontWeight: 600,
                 lineHeight: 1.1,
@@ -63,11 +86,11 @@ export default function BedStats({
               }}
             >
               {bedLabel ?? `Bed ${bedId.slice(-4)}`}
-            </div>
+            </h3>
             <div style={{ fontSize: 12, color: "#6b7280" }}>Bed ID: {bedId}</div>
           </div>
           {onClose && (
-            <button onClick={onClose} aria-label="Close" style={closeBtn} title="Close">
+            <button className="close-btn" onClick={onClose} aria-label="Close" title="Close">
               ✕
             </button>
           )}
@@ -124,36 +147,6 @@ function Row({
     </div>
   );
 }
-
-const shell: React.CSSProperties = {
-  position: "fixed",
-  top: "50%",
-  left: 16,
-  transform: "translateY(-50%)",
-  zIndex: 60,
-  width: 320,
-  maxWidth: "90vw",
-  pointerEvents: "auto",
-};
-
-const card: React.CSSProperties = {
-  padding: 12,
-  borderRadius: 12,
-  background: "#ffffff",
-  boxShadow: "0 10px 30px rgba(0,0,0,0.12)",
-  border: "1px solid #e5e7eb",
-  fontSize: 14,
-  backdropFilter: "blur(4px)",
-};
-
-const closeBtn: React.CSSProperties = {
-  color: "#6b7280",
-  border: "1px solid #e5e7eb",
-  background: "white",
-  borderRadius: 8,
-  padding: "4px 8px",
-  cursor: "pointer",
-};
 
 // Optional helper to later add NPK:
 // function formatNPK(n?: { N?: string; P?: string; K?: string }) {

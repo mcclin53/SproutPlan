@@ -66,6 +66,7 @@ body {
   border-radius: 6px;
   padding: 5px;
   position: relative;
+  
 }
 
 /* Plant list inside bed */
@@ -133,4 +134,37 @@ body {
   color: white;
   cursor: pointer;
   transform: "translate(25%,25%)";
+}
+
+.card-shell {
+  width: 320px;
+  max-width: 90vw;
+  pointer-events: auto;
+  position: fixed; /* optional: for draggable overlays */
+  z-index: 51; /* safe default */
+}
+
+.stat-card {
+  padding: 12px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.7);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
+  border: 1px solid #e5e7eb;
+  font-size: 14px;
+  backdrop-filter: blur(2px);
+}
+
+.close-btn {
+  color: #6b7280;
+  border: 1px solid #e5e7eb;
+  background: white;
+  border-radius: 8px;
+  padding: 4px 8px;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.close-btn:hover {
+  background: #f9fafb;
+  color: #374151;
 }

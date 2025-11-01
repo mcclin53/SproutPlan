@@ -102,6 +102,7 @@ const [, drop] = useDrop(() => ({
       ref={mergeRefs(drag, drop, dropRef)}
       id={`bed-${bed._id}`}
       className="bed-box"
+      title="Double Click for Bed Stats"
       onDoubleClick={() => onOpenStats?.(bed._id)}
       style={{
         width: `${bed.width * 50}px`,
@@ -143,8 +144,8 @@ const [, drop] = useDrop(() => ({
       </div>
 
       <div className="bed-buttons">
-        <button className="button" onClick={onRemoveBed}>
-          Remove Bed
+        <button className="button" onClick={onRemoveBed} title="Remove Bed">
+          X
         </button>
       </div>
     </div>
