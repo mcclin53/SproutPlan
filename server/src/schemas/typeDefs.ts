@@ -86,6 +86,7 @@ const typeDefs = gql`
     day: Date!
     sunlightHours: Float!
     shadedHours: Float
+    tempOkHours: Float
     height: Float!
     canopyRadius: Float!
     modelVersion: String!
@@ -139,6 +140,7 @@ type Location {
       day: Date!
       sunlightHours: Float!
       shadedHours: Float
+      tempOkHours: Float
       modelVersion: String!
       inputs: JSON
     ): PlantGrowthSnapshot!

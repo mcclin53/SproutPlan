@@ -1,4 +1,3 @@
-// client/src/hooks/useWeather.ts
 import { useEffect, useMemo, useState } from "react";
 
 export type DayWeather = {

@@ -7,6 +7,15 @@ import PlantInstanceComponent from "./PlantInstance";
 import { MOVE_PLANT_IN_BED } from "../utils/mutations";
 import { motion } from "framer-motion";
 
+interface DayWeather {
+  dateISO: string;
+  tMeanC: number;
+  tMinC: number;
+  tMaxC: number;
+  precipMm: number;
+  et0Mm?: number;
+}
+
 interface BedProps {
   bed: {
     _id: string;
@@ -28,7 +37,11 @@ interface BedProps {
   shadedIds: string[];
   dayWeather?: DayWeather | null;
   soil?: { moistureMm: number; capacityMm?: number; percolationMmPerDay?: number } | null;
+  hourlyTempsC?: number[];
   onPlantClick?: (payload: { plantInstance: any; bedId: string }) => void;
+  onLiveStats?: (payload: { plantId: string; height?: number; canopy?: number; sunHours?: number; tempOkHours?: number }) => void;
+  onOpenStats?: (bedId: string) => void;
+
 }
 
 function mergeRefs<T>(...refs: Array<React.Ref<T> | undefined>) {
@@ -45,7 +58,7 @@ function mergeRefs<T>(...refs: Array<React.Ref<T> | undefined>) {
   };
 }
 
-export default function Bed({ bed, onAddBasePlantsToBed, onRemoveBed, moveBed, movePlantInBed, getPlantCoordinates, handleRemovePlant, sunDirection, simulatedDate, shadedIds, onPlantClick}: BedProps) {
+export default function Bed({ bed, onAddBasePlantsToBed, onRemoveBed, moveBed, movePlantInBed, getPlantCoordinates, handleRemovePlant, sunDirection, simulatedDate, shadedIds, dayWeather, soil, hourlyTempsC, onPlantClick, onLiveStats, onOpenStats}: BedProps) {
   const dropRef = useRef<HTMLDivElement>(null)
   const [movePlantInBedMutation] = useMutation(MOVE_PLANT_IN_BED);
 
@@ -89,6 +102,7 @@ const [, drop] = useDrop(() => ({
       ref={mergeRefs(drag, drop, dropRef)}
       id={`bed-${bed._id}`}
       className="bed-box"
+      onDoubleClick={() => onOpenStats?.(bed._id)}
       style={{
         width: `${bed.width * 50}px`,
         height: `${bed.length * 50}px`,
@@ -116,7 +130,11 @@ const [, drop] = useDrop(() => ({
             simulatedDate={simulatedDate}
             shadedIds={shadedIds}
             isShaded={shadedIds.includes(plantInstance._id)}
+            soil={soil ? { moistureMm: soil.moistureMm } : undefined}
+            dayWeather={dayWeather}
+            hourlyTempsC={hourlyTempsC}
             onPlantClick={onPlantClick}
+            onLiveStats={onLiveStats}
           />
         ))
       ) : (

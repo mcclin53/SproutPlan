@@ -239,6 +239,7 @@ export function useGrowPlant(
         }
 
         const hours = snapshotSunHours[plant._id] ?? 0;
+        const hoursTempOk = snapshotTempOk[plant._id] ?? 0;
 
         const variables = {
           bedId,
@@ -246,6 +247,7 @@ export function useGrowPlant(
           day: dayISO,
            sunlightHours: hours,
           shadedHours: 0,
+          tempOkHours: hoursTempOk,
           modelVersion,
           inputs: buildInputsForPlant ? buildInputsForPlant(plant) : null,
         };
@@ -276,7 +278,10 @@ export function useGrowPlant(
       });
 
         // New day: clear today’s sunlight tally
-    if (resetDaily) setSunlightHours({});
+    if (resetDaily) {
+      setSunlightHours({});
+      setTempOkHours({});
+     }
     } catch (err) {
       console.error("[applyMidnightGrowth] error:", err);
         // Don’t clear sunlightHours on failure; allow retry next tick if desired

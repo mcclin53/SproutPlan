@@ -39,7 +39,15 @@ interface Props {
   isShaded?: boolean;
   dayWeather?: { dateISO: string;tMeanC: number; tMinC: number; tMaxC: number; precipMm: number; et0Mm?: number; } | null;
   soil?: { moistureMm: number };
+  hourlyTempsC?: number[];
   onPlantClick?: (payload: { plantInstance: PlantInstance; bedId: string }) => void;
+  onLiveStats?: (payload: {
+  plantId: string;
+  height?: number;
+  canopy?: number;
+  sunHours?: number;
+  tempOkHours?: number; // keep for later if you wire it
+}) => void;
 }
 
 const BASE_URL = (import.meta.env.VITE_API_URL as string) || "http://localhost:3001";
@@ -56,7 +64,9 @@ export default function PlantInstanceComponent({
   isShaded = false,
   dayWeather,
   soil,
+  hourlyTempsC,
   onPlantClick,
+  onLiveStats,
 }: Props) {
   const [failedImages, setFailedImages] = useState(false);
 
@@ -96,13 +106,22 @@ export default function PlantInstanceComponent({
     ? { elevation: sunDirection.elevation, azimuth: sunDirection.azimuth }
     : null;
 
-    const bedIdByPlant = useMemo(
-  () => ({ [plantInstance._id]: bedId }),
-  [plantInstance._id, bedId]
-);
+  const bedIdByPlant = useMemo(
+    () => ({ [plantInstance._id]: bedId }),
+    [plantInstance._id, bedId]
+  );
 
+  const hourlyTempC = useMemo(
+    () =>
+      hourlyTempsC && hourlyTempsC.length >= 24
+        ? hourlyTempsC
+        : dayWeather
+        ? new Array(24).fill(dayWeather.tMeanC) // fallback so tempOkHours can still advance
+        : undefined,
+    [hourlyTempsC, dayWeather]
+  );
 
-  const { grownPlants, sunlightHours } = useGrowPlant(plantsForGrowth, {
+  const { grownPlants, sunlightHours, tempOkHours } = useGrowPlant(plantsForGrowth, {
     simulatedDate: simulatedDate ?? new Date(),
     sun,
     shadedIds,
@@ -121,10 +140,22 @@ export default function PlantInstanceComponent({
       et0Mm: dayWeather?.et0Mm ?? null,
       soilMoistureMm: soil?.moistureMm ?? null,
      }),
+     hourlyTempC,
   });
 
   const grown = grownPlants[0];
   const hoursToday = sunlightHours[plantInstance._id] ?? 0;
+
+  const tempOk = tempOkHours?.[plantInstance._id] ?? 0;
+  React.useEffect(() => {
+  onLiveStats?.({
+    plantId: plantInstance._id,
+    height: grown?.height,
+    canopy: grown?.canopyRadius,
+    sunHours: hoursToday,
+    tempOkHours: tempOk,
+  });
+}, [onLiveStats, plantInstance._id, grown?.height, grown?.canopyRadius, hoursToday, tempOk]);
 
   const imgField = plantInstance.basePlant.image;
   const remote =

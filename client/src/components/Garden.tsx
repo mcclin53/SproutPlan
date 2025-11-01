@@ -21,6 +21,8 @@ import Weather from "./Weather";
 import { useWeather } from "../hooks/useWeather";
 import { useWater } from "../hooks/useWater";
 import PlantStats from "./PlantStats";
+import { guessRootDepthM } from "../utils/waterBand";
+import BedStats from "./BedStats";
 // import { useTemperature } from "../hooks/useTemperature";
 
   // Traverse City, MI (example coords)
@@ -34,8 +36,9 @@ export default function Garden() {
   }, []);
   
   const [selected, setSelected] = useState<{ plant: any; bedId: string } | null>(null);
+  const [selectedBedId, setSelectedBedId] = useState<string | null>(null);
 
-  const { day: dayWeather } = useWeather(GARDEN_LAT, GARDEN_LON, localSimulatedDate);
+  const { day: dayWeather, hourly } = useWeather(GARDEN_LAT, GARDEN_LON, localSimulatedDate);
 
   // Apollo
   const { loading: bedsLoading, error: bedsError, data: bedsData } = useQuery(GET_BEDS);
@@ -51,11 +54,19 @@ export default function Garden() {
   const [dragBeds, setDragBeds] = useState<DragBed[]>([]);
   const { beds, moveBed, setBeds } = useDragBed(dragBeds);
 
-  
+  const [liveByPlant, setLiveByPlant] = React.useState<Record<
+  string,
+  { height?: number; canopy?: number; sunHours?: number; tempOkHours?: number }
+>>({}); // NEW
 
-  const {
-    soil, waterEff, irrigate
-  } = useWater({
+// stable callback to store live stats
+  const handleLiveStats = React.useCallback((p: {
+  plantId: string; height?: number; canopy?: number; sunHours?: number; tempOkHours?: number;
+  }) => {
+    setLiveByPlant(prev => ({ ...prev, [p.plantId]: { height: p.height, canopy: p.canopy, sunHours: p.sunHours, tempOkHours: p.tempOkHours } }));
+  }, []);
+
+  const { soil, waterEff, irrigate, waterMin, waterMax } = useWater({
     bedId: "garden-default",
     day: dayWeather,
     initialSoil: { capacityMm: 60, moistureMm: 36, percolationMmPerDay: 2 },
@@ -265,6 +276,8 @@ export default function Garden() {
               shadedIds={shadowData.shadedPlants}
               dayWeather={dayWeather}
               soil={soil}
+              hourlyTempsC={hourly?.tempC}
+              onOpenStats={(id) => setSelectedBedId(id)}
               onAddBasePlantsToBed={(bedId, basePlantIds, positions) => {
                 addPlantsToBed(bedId, basePlantIds, positions, (updatedBed) => {
                   setDragBeds(prev =>
@@ -290,6 +303,7 @@ export default function Garden() {
                 getPlantCoordinates={getPlantCoordinates}
                 handleRemovePlant={handleRemovePlant}
                 onPlantClick={({ plantInstance, bedId }) => setSelected({ plant: plantInstance, bedId })}
+                onLiveStats={handleLiveStats}
               />
               ))}
               {!isNight && (
@@ -323,9 +337,24 @@ export default function Garden() {
         bedId={selected.bedId}
         soil={{ moistureMm: soil.moistureMm, capacityMm: soil.capacityMm }} // from useWater
         simulatedDate={localSimulatedDate}
+        todaySunHours={liveByPlant[selected.plant._id]?.sunHours}
+        todayTempOkHours={liveByPlant[selected.plant._id]?.tempOkHours}
+        liveHeight={liveByPlant[selected.plant._id]?.height}
+        liveCanopy={liveByPlant[selected.plant._id]?.canopy}
         onClose={() => setSelected(null)}   
       />
-    )}
+      )}
+      {selectedBedId && (
+        <BedStats
+          bedId={selectedBedId}
+          bedLabel={`Bed ${selectedBedId.slice(-4)}`}
+          soil={{ moistureMm: soil.moistureMm, capacityMm: soil.capacityMm }}
+          waterEff={waterEff}
+          waterMin={waterMin}
+          waterMax={waterMax}
+          onClose={() => setSelectedBedId(null)}
+        />
+      )}
 
       {/* Clear all beds button */}
       {beds.length > 0 && (

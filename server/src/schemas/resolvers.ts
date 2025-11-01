@@ -34,6 +34,7 @@ const resolvers: IResolvers = {
           height: p.height ?? 0,
           canopyRadius: p.canopyRadius ?? 0,
           lastSimulatedAt: p.lastSimulatedAt || null,
+          plantedAt: p.plantedAt || null,
           basePlant: p.basePlant,
         })),
         x: bed.x ?? 0,
@@ -148,6 +149,7 @@ const resolvers: IResolvers = {
           height: p.height ?? 0,
           canopyRadius: p.canopyRadius ?? 0,
           lastSimulatedAt: p.lastSimulatedAt || null,
+          plantedAt: p.plantedAt || null,
         })),
         x: populated.x ?? 0,
         y: populated.y ?? 0,
@@ -178,6 +180,7 @@ const resolvers: IResolvers = {
           height: p.height ?? 0,
           canopyRadius: p.canopyRadius ?? 0,
           lastSimulatedAt: p.lastSimulatedAt || null,
+          plantedAt: p.plantedAt || null,
         })),
         x: updatedBed.x ?? 0,
         y: updatedBed.y ?? 0,
@@ -211,6 +214,7 @@ const resolvers: IResolvers = {
           height: p.height ?? 0,
           canopyRadius: p.canopyRadius ?? 0,
           lastSimulatedAt: p.lastSimulatedAt || null,
+          plantedAt: p.plantedAt || null,
         })),
       };
     },
@@ -244,6 +248,7 @@ const resolvers: IResolvers = {
       height: p.height ?? 0,
       canopyRadius: p.canopyRadius ?? 0,
       lastSimulatedAt: p.lastSimulatedAt || null,
+      plantedAt: p.plantedAt || null,
       basePlant: p.basePlant ? {
         _id: (p.basePlant as any)._id.toString(),
         name: (p.basePlant as any).name,
@@ -297,6 +302,7 @@ const resolvers: IResolvers = {
           basePlant: p.basePlant,
           x: p.x ?? 0,
           y: p.y ?? 0,
+          plantedAt: p.plantedAt || null,
         })),
       };
     },
@@ -314,6 +320,7 @@ const resolvers: IResolvers = {
           day,
           sunlightHours,
           shadedHours = 0,
+          tempOkHours,
           modelVersion = MODEL_VERSION,
           inputs,
         }: {
@@ -322,6 +329,7 @@ const resolvers: IResolvers = {
           day: string;             // ISO date/time (we’ll new Date it)
           sunlightHours: number;
           shadedHours?: number;
+          tempOkHours: number;
           modelVersion?: string;
           inputs?: any;
         }
@@ -385,6 +393,7 @@ const resolvers: IResolvers = {
             $set: {
               sunlightHours,
               shadedHours,
+              tempOkHours: tempOkHours ?? 0,
               height: newH,
               canopyRadius: newC,
               modelVersion,

@@ -175,6 +175,7 @@ export const APPLY_MIDNIGHT_GROWTH = gql`
     $day: Date!,
     $sunlightHours: Float!,
     $shadedHours: Float,
+    $tempOkHours: Float,
     $modelVersion: String!,
     $inputs: JSON
   ) {
@@ -184,12 +185,15 @@ export const APPLY_MIDNIGHT_GROWTH = gql`
       day: $day,
       sunlightHours: $sunlightHours,
       shadedHours: $shadedHours,
+      tempOkHours: $tempOkHours,
       modelVersion: $modelVersion,
       inputs: $inputs
     ) {
       _id
       day
       sunlightHours
+      shadedHours
+      tempOkHours
       height
       canopyRadius
       modelVersion

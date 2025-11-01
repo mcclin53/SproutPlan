@@ -8,6 +8,7 @@ const PlantGrowthSnapshotSchema = new Schema(
     day: { type: Date, required: true }, // normalized to midnight of the simulated day
     sunlightHours: { type: Number, required: true },
     shadedHours: { type: Number, default: 0 },
+    tempOkHours: { type: Number, default: 0 },
     height: { type: Number, required: true },
     canopyRadius: { type: Number, required: true },
     modelVersion: { type: String, required: true },
