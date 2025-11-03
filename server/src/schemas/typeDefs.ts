@@ -11,6 +11,11 @@ const typeDefs = gql`
     email: String!
     password: String!
     saved: [Bed]
+    homeLat: Float
+    homeLon: Float
+    climoStatus: String
+    climoTileKey: String
+    lastClimoBuiltAt: DateTime
   }
 
   type Auth {
