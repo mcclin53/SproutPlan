@@ -1,4 +1,3 @@
-// server/utils/climatology.ts
 import { MongoClient } from "mongodb";
 
 const MONGO_URI = process.env.MONGO_URI ?? "mongodb://127.0.0.1:27017/sproutplan";
@@ -27,7 +26,7 @@ export async function getNormalsForDate(
   lat: number,
   lon: number,
   date: Date,
-  variables: string[] // e.g., ["temperature_2m","precipitation",...]
+  variables: string[]
 ): Promise<NormalHour[]> {
   const client = new MongoClient(MONGO_URI);
   await client.connect();

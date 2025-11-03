@@ -6,42 +6,59 @@ import Auth from '../utils/auth';
 
 // Signup component for user registration
 const Signup = () => {
-  const [formState, setFormState] = useState({
-    username: '',
-    email: '',
-    password: '',
-  });
+  const [formState, setFormState] = useState({ username: '', email: '', password: '' });
+
+  const [coords, setCoords] = useState<{ lat: number; lon: number } | null>(null);
+  const [locError, setLocError] = useState<string | null>(null);
+  const [locLoading, setLocLoading] = useState(false);
+
   const [register, { error, data }] = useMutation(REGISTER);
 
   const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = event.target;
-
-    setFormState({
-      ...formState,
-      [name]: value,
-    });
+    setFormState({ ...formState, [name]: value });
   };
 
-  // Function to handle form submission
+  async function handleEnableLocation() {
+    setLocError(null);
+    setLocLoading(true);
+    try {
+      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          enableHighAccuracy: true,
+          timeout: 10000,
+        });
+      });
+      setCoords({ lat: position.coords.latitude, lon: position.coords.longitude });
+    } catch (e: any) {
+      setCoords(null);
+      setLocError(e?.message || 'Unable to get your location. You can still sign up without it.');
+    } finally {
+      setLocLoading(false);
+    }
+  }
+
   const handleFormSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
+
+    const input: any = {
+      username: formState.username,
+      email: formState.email,
+      password: formState.password,
+    };
+    if (coords) {
+      input.homeLat = coords.lat;
+      input.homeLon = coords.lon;
+    }
     
     try {
-      const { data } = await register({
-        variables: { 
-          input: { 
-            ...formState 
-          } 
-        },
-      });
-
+      const { data } = await register({ variables: { input } });
       Auth.login(data.register.token);
     } catch (e) {
       console.error(e);
     }
   };
 
-  // Render the signup form
   return (
     <main className="signup-container">
     <div className="row signup-row">
@@ -49,6 +66,7 @@ const Signup = () => {
         <div className="card">
           <div className="card-content">
             <span className="card-title">Sign Up</span>
+
             {data ? (
               <p>
                 Success! You may now proceed to{' '}
@@ -68,6 +86,7 @@ const Signup = () => {
                   />
                   <label htmlFor="username" className="active">Username</label>
                 </div>
+
                 <div className="input-field">
                   <input
                     className="validate"
@@ -80,6 +99,7 @@ const Signup = () => {
                   />
                   <label htmlFor="email" className="active">Email</label>
                 </div>
+
                 <div className="input-field">
                   <input
                     className="validate"
@@ -92,6 +112,28 @@ const Signup = () => {
                   />
                   <label htmlFor="password" className="active">Password</label>
                 </div>
+
+                <div style={{ margin: '12px 0' }}>
+                  <button
+                    type="button"
+                    className="btn"
+                    onClick={handleEnableLocation}
+                    disabled={locLoading}
+                  >
+                    {locLoading ? 'Detecting location…' : 'Enable Location (Optional)'}
+                  </button>
+                  {coords && (
+                    <p style={{ marginTop: 8 }}>
+                      Location set ✓ ({coords.lat.toFixed(4)}, {coords.lon.toFixed(4)})
+                    </p>
+                  )}
+                  {locError && (
+                    <p style={{ marginTop: 8, color: 'red' }}>
+                      {locError}
+                    </p>
+                  )}
+                </div>
+
                 <button
                   className="btn"
                   type="submit"

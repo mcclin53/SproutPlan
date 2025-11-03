@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import Garden from "../components/Garden"
 import { useQuery } from '@apollo/client';
 import { GET_BEDS } from '../utils/queries';
+import LocationControls from '../components/LocationControls';
 
 export default function Home () {
   const { data, loading, error } = useQuery(GET_BEDS);
@@ -13,6 +14,7 @@ return (
     <main>
       <div className = "main">
         <p>Your personal garden planner and simulator.</p>
+        <LocationControls />
         <Garden />
       </div>
     </main>

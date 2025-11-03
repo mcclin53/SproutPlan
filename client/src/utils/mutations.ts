@@ -8,11 +8,13 @@ export const REGISTER = gql`
         _id
         username
         email
+        homeLat
+        homeLon
+        climoStatus
       }
     }
   }
 `;
-
 
 export const LOGIN_USER = gql`
   mutation login($email: String!, $password: String!) {
@@ -23,6 +25,12 @@ export const LOGIN_USER = gql`
         username
       }
     }
+  }
+`;
+
+export const SET_USER_LOCATION = gql`
+  mutation setUserLocation($lat: Float!, $lon: Float!) {
+    setUserLocation(lat: $lat, lon: $lon)
   }
 `;
 

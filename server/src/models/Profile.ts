@@ -1,42 +1,42 @@
 import { Schema, model, Document } from 'mongoose';
 import bcrypt from 'bcrypt';
 
-// Define an interface for the Profile document
+export type ClimoStatus = 'idle' | 'building' | 'ready' | 'error';
+
 interface IProfile extends Document {
   _id: string;
   username: string;
   email: string;
   password:string;
   saved: string[];
+  homeLat?: number | null;
+  homeLon?: number | null;
+  climoStatus?: ClimoStatus;
+  climoTileKey?: string | null;
+  lastClimoBuiltAt?: Date | null;
   isCorrectPassword(password: string): Promise<boolean>;
 }
 
-// Define the schema for the Profile document
 const profileSchema = new Schema<IProfile>(
   {
-    username: {
-      type: String,
-      required: true,
-      unique: true,
-      trim: true,
-    },
+    username: { type: String, required: true, unique: true, trim: true },
     email: {
       type: String,
       required: true,
       unique: true,
       match: [/.+@.+\..+/, 'Must match an email address!'],
     },
-    password: {
+    password: { type: String, required: true, minlength: 5 },
+    saved: [{ type: Schema.Types.ObjectId, ref: 'Bed' }],
+    homeLat: { type: Number, default: null },
+    homeLon: { type: Number, default: null },
+    climoStatus: {
       type: String,
-      required: true,
-      minlength: 5,
+      enum: ['idle', 'building', 'ready', 'error'],
+      default: 'idle',
     },
-    saved: [
-      {
-        type: Schema.Types.ObjectId,
-        ref: 'Bed',
-      },
-    ],
+    climoTileKey: { type: String, default: null },
+    lastClimoBuiltAt: { type: Date, default: null }, 
   },
   {
     timestamps: true,
@@ -51,7 +51,6 @@ profileSchema.pre<IProfile>('save', async function (next) {
     const saltRounds = 10;
     this.password = await bcrypt.hash(this.password, saltRounds);
   }
-
   next();
 });
 

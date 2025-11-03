@@ -22,6 +22,8 @@ const typeDefs = gql`
     username: String!
     email: String!
     password: String!
+    homeLat: Float
+    homeLon: Float
   }
 
   type Plant {
@@ -108,10 +110,28 @@ const typeDefs = gql`
     updatedAt: String
 }
 
-type Location {
-  latitude: Float!
-  longitude: Float!
-}
+  type Location {
+    latitude: Float!
+    longitude: Float!
+  }
+
+  type ClimoStatus {
+    ready: Boolean!
+    latRounded: Float!
+    lonRounded: Float!
+    from: String
+    to: String
+    variables: [String!]
+  }
+
+  type HourlyNormals {
+    hour: Int!
+    temperature_2m: Float
+    relativehumidity_2m: Float
+    shortwave_radiation: Float
+    precipitation: Float
+    windspeed_10m: Float
+  }
 
   type Query {
     profiles: [Profile]
@@ -121,6 +141,19 @@ type Location {
     beds: [Bed!]!
     getSunData (latitude: Float!, longitude: Float!, date: String): Sun
     growthSnapshots(plantInstanceId: ID!, from: Date, to: Date): [PlantGrowthSnapshot!]!
+    climoStatus(lat: Float!, lon: Float!): ClimoStatus!
+    normalsForDate(
+      lat: Float!
+      lon: Float!
+      isoDate: String!
+      variables: [String!] = [
+        "temperature_2m",
+        "relativehumidity_2m",
+        "shortwave_radiation",
+        "precipitation",
+        "windspeed_10m"
+      ]
+    ): [HourlyNormals!]!
   }
 
   type Mutation {
@@ -144,6 +177,7 @@ type Location {
       modelVersion: String!
       inputs: JSON
     ): PlantGrowthSnapshot!
+    setUserLocation(lat: Float!, lon: Float!): Boolean!
   }
 `;
 

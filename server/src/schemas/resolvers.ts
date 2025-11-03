@@ -9,8 +9,21 @@ import Sun from "../models/Sun.js";
 import SunCalc from "suncalc"
 import fetch from "node-fetch";
 import PlantGrowthSnapshot from "../models/PlantGrowthSnapshot.js";
+import { MongoClient } from "mongodb";
+import { Queue } from "bullmq";
+import { getNormalsForDate } from "../utils/climatology.js";
+import { snapCoord, snapTile } from "../utils/tiling.js";
 
 const MODEL_VERSION = "growth-v2-size-per-day";
+const MONGO_URI = process.env.MONGO_URI!;
+const DB = "sproutplan";
+const CLIMO_COLL = "climatology";
+const CLIMO_QUEUE = new Queue("climo-builds", {
+  connection: {
+    host: process.env.REDIS_HOST || "127.0.0.1",
+    port: Number(process.env.REDIS_PORT) || 6379,
+  },
+});
 
 const resolvers: IResolvers = {
   Query: {
@@ -102,10 +115,54 @@ const resolvers: IResolvers = {
       }
       return sunData;
     },
-  },
 
+    climoStatus: async (_: any, { lat, lon }: { lat: number; lon: number }) => {
+      const { latRounded, lonRounded } = snapTile(lat, lon, 0.1);
+
+      const client = new MongoClient(MONGO_URI);
+      try {
+        await client.connect();
+        const doc = await client
+          .db(DB)
+          .collection(CLIMO_COLL)
+          .findOne({ latRounded, lonRounded });
+
+        return {
+          ready: !!doc,
+          latRounded,
+          lonRounded,
+          from: doc?.meta?.from ?? null,
+          to: doc?.meta?.to ?? null,
+          variables: doc?.meta?.variables ?? null,
+        };
+      } finally {
+        await client.close();
+      }
+    },
+
+    normalsForDate: async ( _: any, { lat, lon, isoDate, variables }: { lat: number; lon: number; isoDate: string; variables: string[] }
+    ) => {
+      const { latRounded, lonRounded } = snapTile(lat, lon, 0.1);
+
+      try {
+        const rows = await getNormalsForDate(latRounded, lonRounded, new Date(isoDate), variables);
+        return rows.map((r) => ({
+          hour: r.hour,
+          temperature_2m: r.values["temperature_2m"],
+          relativehumidity_2m: r.values["relativehumidity_2m"],
+          shortwave_radiation: r.values["shortwave_radiation"],
+          precipitation: r.values["precipitation"],
+          windspeed_10m: r.values["windspeed_10m"],
+        }));
+      } catch (err) {
+        throw new Error(
+          "Climatology not ready for this location. Call setUserLocation first, then poll climoStatus until ready."
+        );
+      }
+    },
+  },
   Mutation: {
-    login: async (_, { email, password }) => {
+    login: async (_: any, { email, password }: {email: string; password: string}) => {
       const profile = await Profile.findOne({ email });
       if (!profile || !(await profile.isCorrectPassword(password))) {
         throw new AuthenticationError("Incorrect credentials");
@@ -118,12 +175,39 @@ const resolvers: IResolvers = {
       return { token, profile };
     },
 
-    register: async (_, { input }) => {
-      const { username, email, password } = input;
+    register: async (_: any, { input }) => {
+      const { username, email, password, homeLat, homeLon } = input;
       const existingProfile = await Profile.findOne({ email });
       if (existingProfile) throw new UserExistsError("A profile with this email already exists.");
 
-      const profile = await Profile.create({ username, email, password });
+      const profile = await Profile.create({ 
+        username, 
+        email, 
+        password, 
+        homeLat: homeLat ?? null,
+        homeLon: homeLon ?? null,
+        climoStatus: homeLat && homeLon ? "building" : "idle"
+      });
+
+      //if user provides location, enqueue auto build
+      if (homeLat != null && homeLon != null) {
+        const {latRounded, lonRounded }  = snapTile(homeLat, homeLon, 0.1);
+        await CLIMO_QUEUE.add(
+          "build",
+          { lat: latRounded, lon: lonRounded },
+          {
+            jobId: `${latRounded},${lonRounded}`,
+            removeOnComplete: true,
+            attempts: 5,
+            backoff: { type: "exponential", delay: 2000 },
+          }
+        );
+
+        await Profile.updateOne(
+          { _id: profile._id },
+          { $set: { climoTileKey: `${latRounded},${lonRounded}` }}
+        );
+      }
       const token = signToken({
         _id: profile._id,
         email: profile.email,
@@ -132,7 +216,33 @@ const resolvers: IResolvers = {
       return { token, profile };
     },
 
-    createBed: async (_, { width, length }) => {
+    setUserLocation: async (_: any, { lat, lon }: {lat: number; lon: number }, ctx: any) => {
+      //save to user
+      if (!ctx.user?._id) throw new Error("Not authenticated");
+      
+      const { latRounded, lonRounded } = snapTile(lat, lon, 0.1);
+
+      await Profile.updateOne(
+        { _id: ctx.user._id },
+        { $set: { homeLat: latRounded, homeLon: lonRounded, climoStatus: "building" } }
+      );
+        
+      //enqueue a build for the snapped tile
+      await CLIMO_QUEUE.add(
+        "build",
+        { lat: latRounded, lon: lonRounded },
+        {
+          jobId: `${latRounded},${lonRounded}`,
+          removeOnComplete: true,
+          attempts: 5,
+          backoff: { type: "exponential", delay: 2000 },
+        }
+      );
+
+      return true;
+    },
+
+    createBed: async (_: any, { width, length }: {width: number; length: number}) => {
       const bed = await Bed.create({ width, length, plants: [] });
       const populated = await bed.populate({
         path: "plants.basePlant",
@@ -414,4 +524,4 @@ const resolvers: IResolvers = {
     },
   };
 
-export default resolvers;
+  export default resolvers;

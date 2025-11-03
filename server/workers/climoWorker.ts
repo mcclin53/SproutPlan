@@ -26,7 +26,7 @@ const worker = new Worker(
     const jobId = `${lat},${lon}`;
     const start = Date.now();
 
-    console.log(`🌦️ [climoWorker] Starting build for ${jobId}...`);
+    console.log(` [climoWorker] Starting build for ${jobId}...`);
 
     try {
       await buildClimatology(lat, lon, { persist: true });
@@ -42,7 +42,7 @@ const worker = new Worker(
   {
     concurrency: CONCURRENCY,
     connection,
-    // Optional: backoff / retry settings (can also be set per job)
+    // backoff / retry settings
     settings: {
       backoffStrategies: {
         exponential: (attemptsMade) => Math.pow(2, attemptsMade) * 1000, // exponential backoff

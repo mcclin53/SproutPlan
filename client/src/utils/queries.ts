@@ -27,6 +27,13 @@ export const QUERY_ME = gql`
       _id
       username
       skills
+      homeLat
+      homeLon
+      climoStatus
+      locationLabel
+      city
+      region
+      country
     }
   }
 `;
