@@ -83,7 +83,7 @@ async function seedPlants(force = false) {
     for (let i = progress.lastPlantIndex; i < plants.length; i += CONCURRENCY) {
       const batch = plants.slice(i, i + CONCURRENCY);
 
-      const results = await Promise.allSettled(batch.map(p => fetchPlantDetails(p.id)));
+      const results = await Promise.allSettled(batch.map((p: any) => fetchPlantDetails(p.id)));
 
       for (let j = 0; j < results.length; j++) {
         if (processedToday >= DAILY_LIMIT) break;

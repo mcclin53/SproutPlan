@@ -16,6 +16,10 @@ const typeDefs = gql`
     climoStatus: String
     climoTileKey: String
     lastClimoBuiltAt: DateTime
+    locationLabel: String
+    city: String
+    region: String
+    country: String
   }
 
   type Auth {
@@ -182,7 +186,7 @@ const typeDefs = gql`
       modelVersion: String!
       inputs: JSON
     ): PlantGrowthSnapshot!
-    setUserLocation(lat: Float!, lon: Float!): Boolean!
+    setUserLocation(lat: Float!, lon: Float!): Profile!
   }
 `;
 

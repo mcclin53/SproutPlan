@@ -41,7 +41,10 @@ const startApolloServer = async () => {
   app.use(
     '/graphql',
     expressMiddleware(server, {
-      context: async({ req }) => authenticateToken({ req }),
+      context: async({ req }) => {
+        const ctx = await authenticateToken({ req });
+        return { user: ctx?.user ?? null };
+      },
     })
   );
 // Gets the default plants

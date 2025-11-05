@@ -15,59 +15,60 @@ type GeoHit = {
   label: string;
 };
 
+function formatHitLabel(r: any) {
+  const labelParts = [r.city || r.name, r.admin1, r.country].filter(Boolean);
+  return labelParts.join(", ");
+}
+
 async function geocodePlace(q: string): Promise<GeoHit[]> {
-  const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(
-    q
-  )}&count=5&language=en&format=json`;
+  const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=5&language=en&format=json`;
   const res = await fetch(url);
   if (!res.ok) return [];
   const data = await res.json();
   const results = (data?.results || []) as any[];
-  return results.map((r) => {
-    const labelParts = [
-      r.city || r.name,
-      r.admin1,
-      r.country,
-    ].filter(Boolean);
-    return {
-      id: String(r.id ?? `${r.latitude},${r.longitude}`),
-      name: r.name,
-      city: r.city,
-      admin1: r.admin1,
-      admin2: r.admin2,
-      country: r.country,
-      latitude: r.latitude,
-      longitude: r.longitude,
-      label: labelParts.join(", "),
-    } as GeoHit;
-  });
+  return results.map((r) => ({
+    id: String(r.id ?? `${r.latitude},${r.longitude}`),
+    name: r.name,
+    city: r.city,
+    admin1: r.admin1,
+    admin2: r.admin2,
+    country: r.country,
+    latitude: r.latitude,
+    longitude: r.longitude,
+    label: formatHitLabel(r),
+  }));
 }
 
 export default function LocationControls() {
-  // read current status
-  const { data, startPolling, stopPolling, refetch } = useQuery(QUERY_ME, {
-    fetchPolicy: "cache-and-network",
+  // Force a fresh read on first mount after signup
+  const { data, loading, startPolling, stopPolling } = useQuery(QUERY_ME, {
+    fetchPolicy: "network-only",
+    nextFetchPolicy: "cache-first",
+    notifyOnNetworkStatusChange: true,
   });
 
   const me = data?.me;
   const climoStatus: string | undefined = me?.climoStatus;
-  const hasLocation = typeof me?.homeLat === "number" && typeof me?.homeLon === "number";
 
   const [setUserLocation, { loading: setLocLoading }] = useMutation(SET_USER_LOCATION, {
-    onCompleted: () => {
-      // begin polling me to watch climoStatus flip to "ready"
+    // Write result directly into QUERY_ME so UI updates immediately
+    update(cache, { data }) {
+      const updated = data?.setUserLocation;
+      if (!updated) return;
+      cache.writeQuery({
+        query: QUERY_ME,
+        data: { me: updated },
+      });
+    },
+    onCompleted() {
       startPolling(4000);
-      // re-fetch immediately too
-      refetch();
     },
   });
 
-  // stop polling when ready
   useEffect(() => {
     if (climoStatus === "ready") stopPolling();
   }, [climoStatus, stopPolling]);
 
-  // manual search
   const [query, setQuery] = useState("");
   const [hits, setHits] = useState<GeoHit[]>([]);
   const [searching, setSearching] = useState(false);
@@ -103,20 +104,30 @@ export default function LocationControls() {
       await setUserLocation({
         variables: { lat: pos.coords.latitude, lon: pos.coords.longitude },
       });
-    } catch (e) {
+    } catch {
       alert("Unable to get your device location. Try manual city/ZIP search.");
     }
   }
 
+  const friendly =
+    me?.locationLabel ||
+    (Number.isFinite(me?.homeLat) && Number.isFinite(me?.homeLon)
+      ? `${Number(me!.homeLat!).toFixed(3)}, ${Number(me!.homeLon!).toFixed(3)}`
+      : null);
+
+      console.log("QUERY_ME me:", me);
+
   return (
     <div className="card" style={{ marginBottom: 16 }}>
       <div className="card-content">
-        <span className="card-title">Garden Location</span>
+        <span className="card-title">Garden Location: {friendly ? `: ${friendly}` : ""}</span>
 
         <p style={{ marginBottom: 8 }}>
-          {hasLocation ? (
+          {loading ? (
+            "Loading location…"
+          ) : friendly ? (
             <>
-              <strong>Location set</strong> — status:{" "}
+              <strong>Location:</strong> {friendly} {" — status: "}
               <strong>{climoStatus || "idle"}</strong>
               {climoStatus === "building" && " (preparing climate normals…)"}
               {climoStatus === "ready" && " (ready!)"}
@@ -151,11 +162,7 @@ export default function LocationControls() {
           <ul style={{ marginTop: 10 }}>
             {hits.map((h) => (
               <li key={h.id} style={{ marginBottom: 6 }}>
-                <button
-                  className="btn"
-                  onClick={() => pickPlace(h)}
-                  style={{ marginRight: 8 }}
-                >
+                <button className="btn" onClick={() => pickPlace(h)} style={{ marginRight: 8 }}>
                   Use this
                 </button>
                 <span>{h.label || `${h.latitude.toFixed(3)}, ${h.longitude.toFixed(3)}`}</span>

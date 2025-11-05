@@ -30,7 +30,17 @@ export const LOGIN_USER = gql`
 
 export const SET_USER_LOCATION = gql`
   mutation setUserLocation($lat: Float!, $lon: Float!) {
-    setUserLocation(lat: $lat, lon: $lon)
+    setUserLocation(lat: $lat, lon: $lon) {
+      _id
+      homeLat
+      homeLon
+      climoStatus
+      climoTileKey
+      locationLabel
+      city
+      region
+      country
+    }
   }
 `;
 

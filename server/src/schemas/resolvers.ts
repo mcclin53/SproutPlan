@@ -12,7 +12,7 @@ import PlantGrowthSnapshot from "../models/PlantGrowthSnapshot.js";
 import { MongoClient } from "mongodb";
 import { Queue } from "bullmq";
 import { getNormalsForDate } from "../utils/climatology.js";
-import { snapCoord, snapTile } from "../utils/tiling.js";
+import { snapTile } from "../utils/tiling.js";
 
 const MODEL_VERSION = "growth-v2-size-per-day";
 const MONGO_URI = process.env.MONGO_URI!;
@@ -25,11 +25,41 @@ const CLIMO_QUEUE = new Queue("climo-builds", {
   },
 });
 
+async function reverseGeocodeWithNominatim(lat: number, lon: number) {
+  const url =
+    `https://nominatim.openstreetmap.org/reverse` +
+    `?format=jsonv2&lat=${encodeURIComponent(lat)}` +
+    `&lon=${encodeURIComponent(lon)}` +
+    `&zoom=10&addressdetails=1`;
+
+  const res = await fetch(url, {
+    headers: {
+      // IMPORTANT: Put a real contact here to comply with Nominatim policy
+      "User-Agent": process.env.NOMINATIM_UA || "SproutPlan/1.0 (youremail@example.com)",
+    },
+  });
+
+  if (!res.ok) {
+    console.warn("reverse geocode HTTP not ok:", res.status, res.statusText);
+    return null;
+  }
+
+  const data = await res.json();
+  const addr = data?.address || {};
+  const city = addr.city || addr.town || addr.village || addr.hamlet || null;
+  const region = addr.state || addr.region || addr.county || null;
+  const country = addr.country || null;
+  const parts = [city, region, country].filter(Boolean);
+  const locationLabel = parts.length ? parts.join(", ") : null;
+
+  return { city, region, country, locationLabel };
+}
+
 const resolvers: IResolvers = {
   Query: {
-    me: async (_, __, context: { req: AuthRequest }) => {
-      if (!context.req.user) throw new AuthenticationError("Not authenticated");
-      return await Profile.findById(context.req.user._id).populate("savedPlots");
+    me: async (_: any, __: any, { user }: { user?: { _id: string } | null }) => {
+      if (!user?._id) throw new AuthenticationError("Not authenticated");
+      return await Profile.findById(user._id);
     },
 
     beds: async () => {
@@ -216,15 +246,48 @@ const resolvers: IResolvers = {
       return { token, profile };
     },
 
-    setUserLocation: async (_: any, { lat, lon }: {lat: number; lon: number }, ctx: any) => {
-      //save to user
-      if (!ctx.user?._id) throw new Error("Not authenticated");
+    setUserLocation: async (_: any, { lat, lon }: {lat: number; lon: number }, 
+      { user }: { user?: { _id: string } | null }) => {
+      if (!user?._id) throw new AuthenticationError("Not authenticated");
       
       const { latRounded, lonRounded } = snapTile(lat, lon, 0.1);
+      console.log("… snapped coords", { latRounded, lonRounded });
+
+      // reverse geocode (server-side)
+      console.log("... reverse geocode FETCH (Nominatim)");
+      let locationLabel: string | null = null;
+      let city: string | null = null;
+      let region: string | null = null;
+      let country: string | null = null;
+      
+      try {
+        const rev = await reverseGeocodeWithNominatim(lat, lon);
+        if (rev) {
+          city = rev.city;
+          region = rev.region;
+          country = rev.country;
+          locationLabel = rev.locationLabel;
+          console.log("reverse geocode success:", { city, region, country, locationLabel });
+        } else {
+          console.warn("reverse geocode returned null");
+        }
+      } catch (e) {
+        // Non-fatal: keep going without label
+        console.warn("reverse geocode failed:", e);
+      }
 
       await Profile.updateOne(
-        { _id: ctx.user._id },
-        { $set: { homeLat: latRounded, homeLon: lonRounded, climoStatus: "building" } }
+        { _id: user._id },
+        { $set: {
+            homeLat: latRounded,
+            homeLon: lonRounded,
+            climoStatus: "building",
+            locationLabel,
+            city,
+            region,
+            country,
+          },
+        }
       );
         
       //enqueue a build for the snapped tile
@@ -239,7 +302,9 @@ const resolvers: IResolvers = {
         }
       );
 
-      return true;
+      console.log("✓ setUserLocation UPDATED profile label:", { locationLabel, city, region, country });
+
+      return await Profile.findById(user._id);
     },
 
     createBed: async (_: any, { width, length }: {width: number; length: number}) => {

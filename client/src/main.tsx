@@ -5,7 +5,7 @@ import PrivateRoute from './components/PrivateRoute';
 import App from './App';
 import Home from './pages/Home';
 import Login from './pages/Login';
-import Signup from './pages/Signup';
+import Signup from './pages/SignUp';
 
 const router = createBrowserRouter([
   {

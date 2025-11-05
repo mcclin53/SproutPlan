@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { useMutation } from '@apollo/client';
-import { REGISTER } from '../utils/mutations';
+import { Link, useNavigate } from 'react-router-dom';
+import { ApolloError, useMutation, useApolloClient } from '@apollo/client';
+import { REGISTER, SET_USER_LOCATION } from '../utils/mutations';
 import Auth from '../utils/auth';
 
 // Signup component for user registration
 const Signup = () => {
+  const navigate = useNavigate(); 
   const [formState, setFormState] = useState({ username: '', email: '', password: '' });
 
   const [coords, setCoords] = useState<{ lat: number; lon: number } | null>(null);
@@ -13,7 +14,17 @@ const Signup = () => {
   const [locLoading, setLocLoading] = useState(false);
 
   const [register, { error, data }] = useMutation(REGISTER);
-
+  const [setUserLocation] = useMutation(SET_USER_LOCATION, {
+    errorPolicy: 'all',
+    onError: (e: ApolloError) => {
+      console.error("setUserLocation error:", {
+        graphQLErrors: e.graphQLErrors,
+        networkError: e.networkError,
+        message: e.message,
+      });
+    },
+  });
+  const client =  useApolloClient();
   const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = event.target;
     setFormState({ ...formState, [name]: value });
@@ -30,9 +41,15 @@ const Signup = () => {
         });
       });
       setCoords({ lat: position.coords.latitude, lon: position.coords.longitude });
+
+      console.log("📍 Got location from browser:", position.coords.latitude, position.coords.longitude);
+
     } catch (e: any) {
       setCoords(null);
       setLocError(e?.message || 'Unable to get your location. You can still sign up without it.');
+
+      console.warn("⚠️ Geolocation failed:", e);
+
     } finally {
       setLocLoading(false);
     }
@@ -50,12 +67,33 @@ const Signup = () => {
       input.homeLat = coords.lat;
       input.homeLon = coords.lon;
     }
+
+    console.log("🧩 Submitting signup with input:", input);
     
     try {
       const { data } = await register({ variables: { input } });
-      Auth.login(data.register.token);
+      console.log("✅ REGISTER response:", data);
+      Auth.login(data.register.token, { redirect: false });
+      console.log("🔑 Token stored, resetting Apollo cache...");
+      await client.resetStore();
+
+      if (coords) {
+        try {
+          console.log("🌍 Calling setUserLocation with:", { lat: coords.lat, lon: coords.lon });
+          const locRes = await setUserLocation({
+            variables: { lat: coords.lat, lon: coords.lon },
+          });
+          console.log("📦 setUserLocation response:", locRes?.data?.setUserLocation);
+        } catch (e) {
+          console.error("❌ setUserLocation threw:", e);
+        }
+      }
+
+      await new Promise((r) => setTimeout(r, 300));
+
+      navigate("/");
     } catch (e) {
-      console.error(e);
+      console.error("❌ Signup error:", e);
     }
   };
 

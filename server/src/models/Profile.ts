@@ -11,6 +11,10 @@ interface IProfile extends Document {
   saved: string[];
   homeLat?: number | null;
   homeLon?: number | null;
+  locationLabel?: string | null;
+  city?: string | null;
+  region?: string | null;
+  country?: string | null;
   climoStatus?: ClimoStatus;
   climoTileKey?: string | null;
   lastClimoBuiltAt?: Date | null;
@@ -30,6 +34,10 @@ const profileSchema = new Schema<IProfile>(
     saved: [{ type: Schema.Types.ObjectId, ref: 'Bed' }],
     homeLat: { type: Number, default: null },
     homeLon: { type: Number, default: null },
+    locationLabel: { type: String, default: null },
+    city:          { type: String, default: null },
+    region:        { type: String, default: null },
+    country:       { type: String, default: null },
     climoStatus: {
       type: String,
       enum: ['idle', 'building', 'ready', 'error'],
