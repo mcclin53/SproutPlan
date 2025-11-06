@@ -91,6 +91,9 @@ export default function LocationControls() {
 
   async function pickPlace(hit: GeoHit) {
     await setUserLocation({ variables: { lat: hit.latitude, lon: hit.longitude } });
+    setHits([]);
+    setQuery("");
+  
   }
 
   async function enableLocation() {
@@ -120,9 +123,7 @@ export default function LocationControls() {
   return (
     <div className="card" style={{ marginBottom: 16 }}>
       <div className="card-content">
-        <span className="card-title">Garden Location: {friendly ? `: ${friendly}` : ""}</span>
-
-        <p style={{ marginBottom: 8 }}>
+          <p style={{ marginBottom: 8 }}>
           {loading ? (
             "Loading location…"
           ) : friendly ? (
