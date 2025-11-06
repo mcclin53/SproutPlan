@@ -1,24 +1,37 @@
 import React from "react";
-import { useFastForward } from "../hooks/useFastForward";
+import { useTimeControl } from "../hooks/useTimeControl";
 import { useLocalDate } from "../hooks/useLocalDate";
 
 interface TimeControllerProps {
   initialDate?: Date;
-  speed?: number; // ms per simulated hour
+  speed?: number; // ms per simulated step interval
   onDateChange?: (date: Date) => void;
+  onOpenCalendar?: () => void;
 }
 
 export const TimeController: React.FC<TimeControllerProps> = ({
   initialDate = new Date(),
   speed = 200,
   onDateChange,
+  onOpenCalendar,
 }) => {
-  const { simulatedDate, isFastForwarding, toggle } = useFastForward({
-    initialDate,
-    speed,
-  });
+  const {
+    simulatedDate,
+    isRunning,
+    mode,
+    toggle,
+    pause,
+    runRew1h,
+    runRew2h,
+    runRew1d,
+    runFwd1h,
+    runFwd2h,
+    runFwd1d,
+    runPlay,
+    reset,
+  } = useTimeControl({ initialDate, speed });
 
-  // Call onDateChange whenever the simulated date updates
+  // notify parent on date changes
   const onChangeRef = React.useRef<typeof onDateChange>();
   React.useEffect(() => {
     onChangeRef.current = onDateChange;
@@ -26,15 +39,57 @@ export const TimeController: React.FC<TimeControllerProps> = ({
 
   React.useEffect(() => {
     onChangeRef.current?.(simulatedDate);
-    }, [simulatedDate]);
+  }, [simulatedDate]);
 
   const localSimulatedDate = useLocalDate({ simulatedDate });
 
   return (
-    <div style={{ marginBottom: "10px" }}>
-      <button className="button" onClick={toggle}>
-        {isFastForwarding ? "Pause" : "Fast Forward"}
+    <div
+    className="button"
+      
+    >
+      {/* RESET) */}
+      <button className="button" onClick={() => reset(initialDate)} title="Reset to starting date" style={{ fontSize: "1.25rem", lineHeight: 1 }} >
+        ↺
       </button>
+      {/* REWIND */}
+      <button className="button" onClick={runRew1d} title="Auto back 1 day" style={{ fontSize: "1.25rem", lineHeight: 1, letterSpacing: "-0.2em" }}>
+      ◀◀◀◀
+      </button>
+      <button className="button" onClick={runRew2h} title="Auto back 2 hours" style={{ fontSize: "1.25rem", lineHeight: 1, letterSpacing: "-0.2em" }}>
+      ◀◀◀
+      </button>
+      <button className="button" onClick={runRew1h} title="Auto back 1 hour" style={{ fontSize: "1.25rem", lineHeight: 1, letterSpacing: "-0.2em" }}>
+      ◀◀
+      </button>
+
+      {/* Play / Pause */}
+      {isRunning ? (
+        <button className="button" onClick={pause} title={`Pause (${mode})`} style={{ fontSize: "1.25rem", lineHeight: 1 }}>
+          ⏸
+        </button>
+      ) : (
+        <button className="button" onClick={runPlay} title="Play (+15m ticks)" style={{ fontSize: "1.25rem", lineHeight: 1 }}>
+          ▶
+        </button>
+      )}
+
+      {/* FORWARD */}
+      <button className="button" onClick={runFwd1h} title="Auto forward 1 hour" style={{ fontSize: "1.25rem", lineHeight: 1, letterSpacing: "-0.2em" }}>
+        ▶▶
+      </button>
+      <button className="button" onClick={runFwd2h} title="Auto forward 2 hours" style={{ fontSize: "1.25rem", lineHeight: 1, letterSpacing: "-0.2em",  }}>
+        ▶▶▶
+      </button>
+      <button className="button" onClick={runFwd1d} title="Auto forward 1 day" style={{ fontSize: "1.25rem", lineHeight: 1, letterSpacing: "-0.2em" }}>
+        ▶▶▶▶
+      </button>
+
+      {/* Calendar */}
+      <button className="button" onClick={onOpenCalendar} title="Open calendar" style={{ fontSize: "1.25rem", lineHeight: 1 }}>
+        ▦
+      </button>
+
       <span style={{ marginLeft: "10px" }}>
         Simulated time: {localSimulatedDate.toLocaleString()}
       </span>
