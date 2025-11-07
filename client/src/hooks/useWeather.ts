@@ -1,20 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-
-export type DayWeather = {
-  dateISO: string;   // YYYY-MM-DD of simulated day
-  tMeanC: number;    // mean temp °C
-  tMinC: number;     // min temp °C
-  tMaxC: number;     // max temp °C
-  precipMm: number;  // total precipitation (mm)
-  et0Mm?: number;     // FAO ET0 sum (mm)
-};
-
-export type HourlyWeather = {
-  timeISO: string[];     // length ~24 for that day (local tz)
-  tempC: number[];       // hourly temperature
-  precipMm: number[];    // hourly precipitation
-  et0Mm?: number[];      // optional hourly ET0 if you keep it
-};
+import type { DayWeather, HourlyWeather } from "../utils/types";
 
 function isoDateOnly(d: Date) {
   const x = new Date(d);
@@ -22,25 +7,53 @@ function isoDateOnly(d: Date) {
   return x.toISOString().slice(0, 10);
 }
 
-export function useWeather(lat: number, lon: number, date: Date) {
+function startOfDay(d: Date) {
+  const x = new Date(d);
+  x.setHours(0, 0, 0, 0);
+  return x;
+}
+
+function daysBetween(a: Date, b: Date) {
+  return Math.round((startOfDay(b).getTime() - startOfDay(a).getTime()) / 86400000);
+}
+
+function toDOY(d: Date) {
+  const start = new Date(d.getFullYear(), 0, 1);
+  const diff = Math.floor((d.getTime() - start.getTime()) / 86400000);
+  return diff + 1; // 1..365/366
+}
+
+function isLeap(y: number) {
+  return (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0;
+}
+
+export function useWeather(lat: number, lon: number, targetDate: Date) {
   const [day, setDay] = useState<DayWeather | null>(null);
   const [hourly, setHourly] = useState<HourlyWeather | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<Error | null>(null);
 
-  const dayISO = useMemo(() => isoDateOnly(date), [date]);
+  const dayISO = useMemo(() => isoDateOnly(targetDate), [targetDate.getTime()]);
 
   useEffect(() => {
     const controller = new AbortController();
+
+    (async () => {
+      setLoading(true);
+      setError(null);
+
+      try {
+        // Decide forecast vs. climatology by date distance
+        const today = new Date();
+        const ahead = daysBetween(today, targetDate); // can be negative (past)
+
+        if (ahead <= 15 && ahead >= 0) {
+          // ---- Forecast path (Open-Meteo hourly up to ~16 days) ----
     const url =
       `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}` +
       `&hourly=temperature_2m,precipitation,et0_fao_evapotranspiration` +
       `&timezone=auto&start_date=${dayISO}&end_date=${dayISO}`;
 
-    (async () => {
-      setLoading(true);
-      setError(null);
-      try {
         const res = await fetch(url, { signal: controller.signal });
         if (!res.ok) throw new Error(`Open-Meteo HTTP ${res.status}`);
         const json = await res.json();
@@ -54,7 +67,7 @@ export function useWeather(lat: number, lon: number, date: Date) {
           setDay(null);
           setHourly(null);
         } else {
-          const sum = (a: number[]) => a.reduce((s, v) => s + v, 0);
+          const sum = (a: number[]) => a.reduce((s, v) => s + (Number.isFinite(v) ? v : 0), 0);
           const tMean = t.reduce((s, v) => s + v, 0) / t.length;
           const tMin = Math.min(...t);
           const tMax = Math.max(...t);
@@ -81,6 +94,54 @@ export function useWeather(lat: number, lon: number, date: Date) {
             et0Mm: e.length ? e : undefined,
           });
         }
+      } else {
+        // Climatology path
+        const doy = toDOY(targetDate);
+          const dayIndex = (isLeap(targetDate.getFullYear()) && doy === 60) ? 59 : doy;
+
+          const params = new URLSearchParams({
+            lat: String(lat),
+            lon: String(lon),
+            dayIndex: String(dayIndex),
+          });
+
+          const res = await fetch(`/api/climo/hourly?${params.toString()}`, { signal: controller.signal });
+          if (!res.ok) throw new Error(`Climo HTTP ${res.status}`);
+          const data = await res.json() as {
+            timeISO: string[];
+            temperature_2m: number[];
+            precipitation: number[];
+            et0Mm?: number[];
+          };
+
+          const t = data.temperature_2m ?? [];
+          const p = data.precipitation ?? [];
+          if (!t.length) {
+            setDay(null);
+            setHourly(null);
+          } else {
+            const sum = (a: number[]) => a.reduce((s, v) => s + (Number.isFinite(v) ? v : 0), 0);
+            const tMean = t.reduce((s, v) => s + v, 0) / t.length;
+            const tMin = Math.min(...t);
+            const tMax = Math.max(...t);
+
+            setDay({
+              dateISO: dayISO,
+              tMeanC: tMean,
+              tMinC: tMin,
+              tMaxC: tMax,
+              precipMm: sum(p),
+              et0Mm: null, // no ET0 in climo yet (can be added later)
+            });
+
+            setHourly({
+              timeISO: data.timeISO ?? Array.from({ length: 24 }, (_, h) => `${dayISO}T${String(h).padStart(2, "0")}:00:00`),
+              tempC: t,
+              precipMm: p,
+              et0Mm: undefined,
+            });
+          }
+        }
       } catch (err: any) {
         if (err?.name !== "AbortError") setError(err);
         setDay(null);
@@ -91,7 +152,7 @@ export function useWeather(lat: number, lon: number, date: Date) {
     })();
 
     return () => controller.abort();
-  }, [lat, lon, dayISO]);
+  }, [lat, lon, dayISO, targetDate]);
 
   return { day, hourly, loading, error };
 }

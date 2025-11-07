@@ -1,5 +1,5 @@
 import { MongoClient } from "mongodb";
-import { addDays, formatISO, subDays } from "date-fns";
+import { addDays, subDays } from "date-fns";
 
 const BASE = "https://historical-forecast-api.open-meteo.com/v1/forecast";
 const START_DATE = "2022-01-01";
@@ -45,6 +45,12 @@ type ClimatologyDoc = {
     builtAt: string;
   };
 };
+function formatISO(date: Date, opts?: { representation?: "date" }) {
+  if (opts?.representation === "date") {
+    return date.toISOString().slice(0, 10); // "YYYY-MM-DD"
+  }
+  return date.toISOString(); // full ISO
+}
 
 function toDOY(d: Date): number {
   const start = new Date(d.getFullYear(), 0, 1);

@@ -13,14 +13,10 @@ export type UseWaterOptions = {
   day: DayWeather | null;
   initialSoil: SoilState;
   waterUseFactor?: number;      // scales ET0 usage; set 0 to ignore ET0
-
-  // OPTIONAL plant-level inputs for dynamic band
   kc?: number;                  // crop coefficient (e.g., KcMid)
   rootDepthM?: number;          // effective root depth (m)
   awcMmPerM?: number;           // loam ~150 mm/m; override if you like
   dynamicBand?: boolean;        // default true
-
-  // OPTIONAL hard overrides; if provided, these win over dynamic band
   plantWaterMin?: number;       // mm where growth ~0 below
   plantWaterMax?: number;       // mm where growth ~1 above
 };
@@ -37,7 +33,7 @@ export function useWater({
   awcMmPerM = 150,
   dynamicBand = true,
 
-  // explicit overrides (optional)
+  // explicit overrides
   plantWaterMin,
   plantWaterMax,
 }: UseWaterOptions) {

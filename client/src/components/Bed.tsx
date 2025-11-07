@@ -6,15 +6,7 @@ import useDragPlant from "../hooks/useDragPlant";
 import PlantInstanceComponent from "./PlantInstance";
 import { MOVE_PLANT_IN_BED } from "../utils/mutations";
 import { motion } from "framer-motion";
-
-interface DayWeather {
-  dateISO: string;
-  tMeanC: number;
-  tMinC: number;
-  tMaxC: number;
-  precipMm: number;
-  et0Mm?: number;
-}
+import type { DayWeather } from "../utils/types";
 
 interface BedProps {
   bed: {

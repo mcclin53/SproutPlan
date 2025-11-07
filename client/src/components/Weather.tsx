@@ -6,6 +6,7 @@ import { dragConfigFrom } from "../utils/dragConfig";
 type Props = {
   lat: number;
   lon: number;
+  simDate?: Date;
   onIrrigate?: (mm: number) => void;
   initialPos?: { x: number; y: number };
   z?: number;
@@ -18,6 +19,7 @@ export default function Weather(props: Props) {
   const {
     lat,
     lon,
+    simDate,
     onIrrigate,
     initialPos,
     z,
@@ -35,11 +37,12 @@ export default function Weather(props: Props) {
     })
   );
 
-  // anchor the weather fetch to the time the user loaded the page
+  // If no simDate is provided, anchor the weather fetch to the time the user loaded the page
   const [anchorDate] = useState(() => new Date());
+  const targetDate = simDate ?? anchorDate;
 
   // NOTE: this is the only place we call hooks after the above hooks — no hooks below any early returns.
-  const { day, hourly, loading, error } = useWeather(lat, lon, anchorDate);
+  const { day, hourly, loading, error } = useWeather(lat, lon, targetDate);
 
   if (loading) {
     return (
@@ -86,8 +89,22 @@ export default function Weather(props: Props) {
     );
   }
 
-  // Build rows WITHOUT hooks (safe across early returns)
-  const rows = buildRows(hourly, anchorDate);
+  // Build rows
+  const rows = (() => {
+    if (!hourly) return [];
+    const N = Math.min(24, hourly.timeISO.length);
+    const out = [];
+    for (let i = 0; i < N; i++) {
+      out.push({
+        ts: hourly.timeISO[i],
+        tempC: hourly.tempC[i],
+        tempF: cToF(hourly.tempC[i]),
+        precipMm: hourly.precipMm?.[i],
+        et0Mm: hourly.et0Mm?.[i],
+      });
+    }
+    return out;
+  })();
 
   return (
     <div className="card-shell" ref={rootRef} style={style}>
@@ -102,10 +119,8 @@ export default function Weather(props: Props) {
               width: 18,
               height: 18,
               borderRadius: "50%",
-              background:
-                "radial-gradient(circle at 30% 30%, #fffad1 0%, #ffd27a 55%, #ffb32a 100%)",
-              boxShadow:
-                "0 0 6px rgba(255, 210, 120, 0.9), 0 0 18px rgba(255, 190, 90, 0.7)",
+              background: "radial-gradient(circle at 30% 30%, #fffad1 0%, #ffd27a 55%, #ffb32a 100%)",
+              boxShadow:  "0 0 6px rgba(255, 210, 120, 0.9), 0 0 18px rgba(255, 190, 90, 0.7)",
               marginRight: 8
             }}
           />
@@ -121,8 +136,9 @@ export default function Weather(props: Props) {
         <div style={{ marginTop: 10, display: "grid", gap: 6, fontSize: 14 }}>
           <Row
             label="Temp (mean/min/max)"
-            value={`${day.tMeanC.toFixed(1)}°C`}
-            sub={`${day.tMinC.toFixed(1)}°C / ${day.tMaxC.toFixed(1)}°C`}
+            value={`${day.tMeanC.toFixed(1)}°C (${cToF(day.tMeanC).toFixed(1)}°F)`}
+            sub={`${day.tMinC.toFixed(1)}°C / ${day.tMaxC.toFixed(1)}°C  ` +
+                 `(${cToF(day.tMinC).toFixed(1)}°F / ${cToF(day.tMaxC).toFixed(1)}°F)`}
           />
           <Row label="Precipitation" value={day.precipMm.toFixed(1)} unit="mm" />
           <Row label="ET₀ (FAO)" value={day.et0Mm != null ? day.et0Mm.toFixed(1) : "—"} unit="mm" />
@@ -159,22 +175,8 @@ export default function Weather(props: Props) {
   );
 }
 
-function buildRows(
-  hourly: { timeISO: string[]; tempC: number[]; precipMm: number[]; et0Mm?: number[] } | null,
-  anchorDate: Date
-) {
-  if (!hourly) return [];
-  const N = Math.min(24, hourly.timeISO.length);
-  const rows = [];
-  for (let i = 0; i < N; i++) {
-    rows.push({
-      ts: hourly.timeISO[i],
-      tempC: hourly.tempC[i],
-      precipMm: hourly.precipMm?.[i],
-      et0Mm: hourly.et0Mm?.[i],
-    });
-  }
-  return rows;
+function cToF(c: number) {
+  return (c * 9) / 5 + 32;
 }
 
 function HeaderRow() {
@@ -193,6 +195,7 @@ function HeaderRow() {
     >
       <div>Time</div>
       <div style={{ textAlign: "right" }}>Temp (°C)</div>
+      <div style={{ textAlign: "right" }}>Temp (°F)</div>
       <div style={{ textAlign: "right" }}>Precip (mm)</div>
       <div style={{ textAlign: "right" }}>ET₀ (mm)</div>
     </div>
@@ -202,7 +205,7 @@ function HeaderRow() {
 function HourRow({
   hour,
 }: {
-  hour: { ts: string; tempC: number; precipMm?: number; et0Mm?: number };
+  hour: { ts: string; tempC: number; tempF: number; precipMm?: number; et0Mm?: number };
 }) {
   const d = new Date(hour.ts);
   const hh = d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
@@ -218,6 +221,7 @@ function HourRow({
     >
       <div>{hh}</div>
       <div style={{ textAlign: "right", fontWeight: 600 }}>{fixedOrDash(hour.tempC, 1)}</div>
+      <div style={{ textAlign: "right" }}>{fixedOrDash(hour.tempF, 1)}</div>
       <div style={{ textAlign: "right" }}>{fixedOrDash(hour.precipMm, 1)}</div>
       <div style={{ textAlign: "right" }}>{fixedOrDash(hour.et0Mm, 2)}</div>
     </div>
@@ -235,6 +239,7 @@ function Row({
   unit?: string;
   sub?: string;
 }) {
+  
   return (
     <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between" }}>
       <div style={{ color: "#4b5563" }}>{label}</div>

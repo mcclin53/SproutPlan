@@ -54,35 +54,35 @@ export const TimeController: React.FC<TimeControllerProps> = ({
           ↺
         </button>
         {/* REWIND */}
-        <button className="button" onClick={runRew1d} title="Auto back 1 day" style={{ fontSize: "1.25rem", lineHeight: 1, letterSpacing: "-0.2em" }}>
+        <button className="button" onClick={runRew1d} title="Auto back 1 day" style={{ fontSize: "1 rem", lineHeight: 1, letterSpacing: "-0.2em" }}>
         ◀◀◀◀
         </button>
-        <button className="button" onClick={runRew2h} title="Auto back 2 hours" style={{ fontSize: "1.25rem", lineHeight: 1, letterSpacing: "-0.2em" }}>
+        <button className="button" onClick={runRew2h} title="Auto back 2 hours" style={{ fontSize: "1 rem", lineHeight: 1, letterSpacing: "-0.2em" }}>
         ◀◀◀
         </button>
-        <button className="button" onClick={runRew1h} title="Auto back 1 hour" style={{ fontSize: "1.25rem", lineHeight: 1, letterSpacing: "-0.2em" }}>
+        <button className="button" onClick={runRew1h} title="Auto back 1 hour" style={{ fontSize: "1 rem", lineHeight: 1, letterSpacing: "-0.2em" }}>
         ◀◀
         </button>
 
         {/* Play / Pause */}
         {isRunning ? (
-          <button className="button" onClick={pause} title={`Pause (${mode})`} style={{ fontSize: "1.25rem", lineHeight: 1 }}>
+          <button className="button" onClick={pause} title={`Pause (${mode})`} style={{ fontSize: "1 rem", lineHeight: 1 }}>
             ⏸
           </button>
         ) : (
-          <button className="button" onClick={runPlay} title="Play (+15m ticks)" style={{ fontSize: "1.25rem", lineHeight: 1 }}>
+          <button className="button" onClick={runPlay} title="Play (+15m ticks)" style={{ fontSize: "1 rem", lineHeight: 1 }}>
             ▶
           </button>
         )}
 
         {/* FORWARD */}
-        <button className="button" onClick={runFwd1h} title="Auto forward 1 hour" style={{ fontSize: "1.25rem", lineHeight: 1, letterSpacing: "-0.2em" }}>
+        <button className="button" onClick={runFwd1h} title="Auto forward 1 hour" style={{ fontSize: "1 rem", lineHeight: 1, letterSpacing: "-0.2em" }}>
           ▶▶
         </button>
-        <button className="button" onClick={runFwd2h} title="Auto forward 2 hours" style={{ fontSize: "1.25rem", lineHeight: 1, letterSpacing: "-0.2em",  }}>
+        <button className="button" onClick={runFwd2h} title="Auto forward 2 hours" style={{ fontSize: "1 rem", lineHeight: 1, letterSpacing: "-0.2em",  }}>
           ▶▶▶
         </button>
-        <button className="button" onClick={runFwd1d} title="Auto forward 1 day" style={{ fontSize: "1.25rem", lineHeight: 1, letterSpacing: "-0.2em" }}>
+        <button className="button" onClick={runFwd1d} title="Auto forward 1 day" style={{ fontSize: "1 rem", lineHeight: 1, letterSpacing: "-0.2em" }}>
           ▶▶▶▶
         </button>
 
@@ -101,8 +101,8 @@ export const TimeController: React.FC<TimeControllerProps> = ({
           aria-modal="false"
           style={{
             position: "absolute",
-            top: "100%",        // just below the bar
-            right: 0,           // align to right; change to left:0 if you prefer
+            top: "100%",
+            right: 0,
             marginTop: 8,
             zIndex: 20,
           }}
@@ -111,7 +111,6 @@ export const TimeController: React.FC<TimeControllerProps> = ({
             value={simulatedDate}
             onChange={(picked) => {
               if (picked) {
-                // Jump the simulation clock to the picked date (midnight)
                 reset(picked);
               }
               setOpen(false);

@@ -23,6 +23,7 @@ import { useWater } from "../hooks/useWater";
 import PlantStats from "./PlantStats";
 import { guessRootDepthM } from "../utils/waterBand";
 import BedStats from "./BedStats";
+import { useTimeControl } from "../hooks/useTimeControl";
 // import { useTemperature } from "../hooks/useTemperature";
 
   // Traverse City, MI (example coords)
@@ -57,7 +58,7 @@ export default function Garden() {
   const [liveByPlant, setLiveByPlant] = React.useState<Record<
   string,
   { height?: number; canopy?: number; sunHours?: number; tempOkHours?: number }
->>({}); // NEW
+>>({});
 
 // stable callback to store live stats
   const handleLiveStats = React.useCallback((p: {
@@ -73,7 +74,8 @@ export default function Garden() {
     waterUseFactor: 1.0,
     });
 
-  // Keep drag state in sync with server beds
+    const { simulatedDate } = useTimeControl();
+
   useEffect(() => {
     if (!bedsData?.beds?.length) return;
 
@@ -199,7 +201,7 @@ export default function Garden() {
     [dragBeds]
   );
 
-  // ---------- Sun + Shadows ----------
+  // Sun and shadows
   const { data: sunData } = useSunData(GARDEN_LAT, GARDEN_LON, localSimulatedDate);
 
   // Build scene objects (screen coords)
@@ -224,12 +226,12 @@ export default function Garden() {
     sunData ? { elevation: sunData.solarElevation, azimuth: sunData.screenAzimuth } : null, true
   );
 
-  // also pass the same sunDirection to Bed (for any UI/overlay arrows)
+  // pass the same sunDirection to Bed
   const sunDirection = sunData
     ? { elevation: sunData.solarElevation, azimuth: sunData.screenAzimuth }
     : null;
 
-  // ---------- Render ----------
+  
   if (bedsLoading || plantsLoading) return <p>Loading garden...</p>;
   if (bedsError) return <p>Error loading beds: {bedsError.message}</p>;
   if (plantsError) return <p>Error loading plants: {plantsError.message}</p>;
@@ -257,7 +259,11 @@ export default function Garden() {
         </div>
 
         <div style={{ position: "fixed", right: 16, top: 16, width: 300 }}>
-        <Weather lat={GARDEN_LAT} lon={GARDEN_LON} onIrrigate={(mm) => irrigate(mm)} />
+        <Weather 
+          key={(simulatedDate ?? new Date()).toISOString().slice(0,10)}
+          lat={GARDEN_LAT} lon={GARDEN_LON} 
+          simDate={simulatedDate} 
+          onIrrigate={(mm) => irrigate(mm)} />
         </div>
 
         {/* Garden beds */}
