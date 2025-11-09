@@ -187,6 +187,7 @@ const typeDefs = gql`
       inputs: JSON
     ): PlantGrowthSnapshot!
     setUserLocation(lat: Float!, lon: Float!): Profile!
+    clearUserLocation: Profile!
   }
 `;
 

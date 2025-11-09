@@ -1,5 +1,7 @@
 import { MongoClient } from "mongodb";
 import { addDays, subDays } from "date-fns";
+import { pathToFileURL } from "url";
+import { snapTile, TILE_STEP } from "../utils/tiling.js";
 
 const BASE = "https://historical-forecast-api.open-meteo.com/v1/forecast";
 const START_DATE = "2022-01-01";
@@ -17,8 +19,8 @@ const HOURLY_VARS = [
 ] as const;
 type HourlyVar = typeof HOURLY_VARS[number];
 
-const MONGO_URI = process.env.MONGO_URI ?? "mongodb://127.0.0.1:27017/sproutplan";
-const DB_NAME = "sproutplan";
+const MONGO_URI = process.env.MONGO_URI ?? "mongodb://127.0.0.1:27017/SproutPlan";
+const DB_NAME = "SproutPlan";
 const COLL = "climatology"; // { latRounded, lonRounded, timezone, normals }
 
 type ClimoBucket = {
@@ -60,10 +62,7 @@ function toDOY(d: Date): number {
 function isLeap(y: number) {
   return (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0;
 }
-function roundCoord(x: number, places = 3) {
-  const k = Math.pow(10, places);
-  return Math.round(x * k) / k;
-}
+
 async function fetchChunk(lat: number, lon: number, start: string, end: string) {
   const params = new URLSearchParams({
     latitude: String(lat),
@@ -73,9 +72,17 @@ async function fetchChunk(lat: number, lon: number, start: string, end: string) 
     hourly: HOURLY_VARS.join(","),
     timezone: TIMEZONE,
   });
-  const res = await fetch(`${BASE}?${params.toString()}`);
+
+  const url = `${BASE}?${params.toString()}`;
+  console.log(`🔹 Fetching chunk: ${start} → ${end}  (${url})`);
+
+  const res = await fetch(url);
   if (!res.ok) throw new Error(`HTTP ${res.status} ${await res.text()}`);
-  return res.json();
+
+  const json = await res.json();
+  console.log(`✅ Received ${json?.hourly?.time?.length ?? 0} hourly records`); 
+
+  return json;
 }
 
 export async function buildClimatology(
@@ -83,6 +90,7 @@ export async function buildClimatology(
   lon: number,
   { chunkDays = 31, persist = true }: { chunkDays?: number; persist?: boolean } = {}
 ): Promise<ClimatologyDoc> {
+  console.log(`🚀 Starting buildClimatology for ${lat}, ${lon}`);
   // Prepare empty buckets (1..366) with 24 zeros for each var
   const bucket: ClimoBucket = {} as any;
   for (let d = 1; d <= 366; d++) {
@@ -105,10 +113,11 @@ export async function buildClimatology(
     const chunkEnd = addDays(cursor, chunkDays - 1);
     const chunkEndStr = formatISO(chunkEnd <= end ? chunkEnd : end, { representation: "date" });
 
+  try {
     const j = await fetchChunk(lat, lon, formatISO(chunkStart, { representation: "date" }), chunkEndStr);
-
     const time = j?.hourly?.time as string[] | undefined;
     if (!time) {
+      console.warn("⚠️ No time array found — skipping chunk.");
       // advance
       cursor = addDays(chunkEnd, 1);
       continue;
@@ -123,7 +132,7 @@ export async function buildClimatology(
       const year = t.getFullYear();
       contributingYears.add(year);
 
-      // leap handling: fold Feb 29 into Feb 28 (DOY 59 for non-leap-base)
+      // leap handling
       const doy = toDOY(t);
       const dayIndex = isLeap(year) && doy === 60 ? 59 : doy; // 59=Feb28 in non-leap DOY
 
@@ -148,8 +157,15 @@ export async function buildClimatology(
       bucket[dayIndex].count += 1;
     }
 
+    console.log(`📅 Processed chunk ${formatISO(chunkStart, { representation: "date" })} → ${chunkEndStr}`);
+    } catch (err) {
+      console.error(`❌ Failed chunk ${cursor.toISOString()}:`, err);
+    }
+
     cursor = addDays(chunkEnd, 1);
   }
+
+    console.log("📊 Computing daily averages...");
 
   // Convert sums → means
   const normals: ClimatologyDoc["normals"] = {};
@@ -162,9 +178,11 @@ export async function buildClimatology(
     }
   }
 
+  const { latRounded, lonRounded } = snapTile(lat, lon, TILE_STEP);
+
   const doc: ClimatologyDoc = {
-    latRounded: roundCoord(lat),
-    lonRounded: roundCoord(lon),
+    latRounded,
+    lonRounded,
     timezone: TIMEZONE,
     normals,
     meta: {
@@ -177,34 +195,44 @@ export async function buildClimatology(
   };
 
   if (persist) {
+    console.log("💾 Saving to MongoDB...");
     const client = new MongoClient(MONGO_URI);
     await client.connect();
     const db = client.db(DB_NAME);
     await db.collection(COLL).createIndex({ latRounded: 1, lonRounded: 1 }, { unique: true });
     await db.collection(COLL).updateOne(
-      { latRounded: doc.latRounded, lonRounded: doc.lonRounded },
+      { latRounded, lonRounded },
       { $set: doc },
       { upsert: true }
     );
     await client.close();
+    console.log("✅ Saved climatology to DB");
   }
+
+  console.log("🎉 Build complete:", {
+    latRounded: doc.latRounded,
+    lonRounded: doc.lonRounded,
+    days: Object.keys(normals).length,
+    years: doc.meta.years,
+  });
 
   return doc;
 }
 
-if (require.main === module) {
+const isDirectRun =
+  typeof process !== "undefined" &&
+  process.argv?.[1] &&
+  import.meta.url === pathToFileURL(process.argv[1]).href;
+
+if (isDirectRun) {
   const lat = Number(process.argv[2]);
   const lon = Number(process.argv[3]);
   if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
-    console.error("Usage: ts-node server/scripts/buildClimatology.ts <lat> <lon>");
+    console.error("Usage: ts-node src/scripts/buildClimatology.ts <lat> <lon>");
     process.exit(1);
   }
-  buildClimatology(lat, lon).then(d => {
-    console.log("Built climatology:", {
-      latRounded: d.latRounded,
-      lonRounded: d.lonRounded,
-      years: d.meta.years,
-      range: `${d.meta.from} → ${d.meta.to}`,
-    });
+  buildClimatology(lat, lon).catch((err) => {
+    console.error("❌ Error:", err);
+    process.exit(1);
   });
 }

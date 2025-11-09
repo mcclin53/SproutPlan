@@ -41,7 +41,6 @@ export default function Weather(props: Props) {
   const [anchorDate] = useState(() => new Date());
   const targetDate = simDate ?? anchorDate;
 
-  // NOTE: this is the only place we call hooks after the above hooks — no hooks below any early returns.
   const { day, hourly, loading, error } = useWeather(lat, lon, targetDate);
 
   if (loading) {

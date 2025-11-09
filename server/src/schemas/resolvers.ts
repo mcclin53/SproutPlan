@@ -1,7 +1,6 @@
 import { Profile } from "../models/index.js";
 import { signToken, AuthenticationError, UserExistsError } from "../utils/auth.js";
 import { IResolvers } from "@graphql-tools/utils";
-import { AuthRequest } from "../utils/auth";
 import { Bed } from "../models/Bed.js";
 import Plant from "../models/Plant.js";
 import mongoose from "mongoose";
@@ -12,7 +11,7 @@ import PlantGrowthSnapshot from "../models/PlantGrowthSnapshot.js";
 import { MongoClient } from "mongodb";
 import { Queue } from "bullmq";
 import { getNormalsForDate } from "../utils/climatology.js";
-import { snapTile } from "../utils/tiling.js";
+import { snapTile, tileKey, TILE_STEP } from "../utils/tiling.js";
 
 const MODEL_VERSION = "growth-v2-size-per-day";
 const MONGO_URI = process.env.MONGO_URI!;
@@ -23,6 +22,10 @@ const CLIMO_QUEUE = new Queue("climo-builds", {
     host: process.env.REDIS_HOST || "127.0.0.1",
     port: Number(process.env.REDIS_PORT) || 6379,
   },
+});
+
+CLIMO_QUEUE.on("error", (err) => {
+  console.error("[CLIMO_QUEUE] Redis/Queue error:", err);
 });
 
 async function reverseGeocodeWithNominatim(lat: number, lon: number) {
@@ -221,22 +224,15 @@ const resolvers: IResolvers = {
 
       //if user provides location, enqueue auto build
       if (homeLat != null && homeLon != null) {
-        const {latRounded, lonRounded }  = snapTile(homeLat, homeLon, 0.1);
+        const {latRounded, lonRounded }  = snapTile(homeLat, homeLon, TILE_STEP);
+        const key = tileKey(homeLat, homeLon, TILE_STEP);
         await CLIMO_QUEUE.add(
           "build",
-          { lat: latRounded, lon: lonRounded },
-          {
-            jobId: `${latRounded},${lonRounded}`,
-            removeOnComplete: true,
-            attempts: 5,
-            backoff: { type: "exponential", delay: 2000 },
-          }
+          { lat: latRounded, lon: lonRounded, key },
+          { jobId: key, removeOnComplete: true, attempts: 5, backoff: { type: "exponential", delay: 2000 } }
         );
 
-        await Profile.updateOne(
-          { _id: profile._id },
-          { $set: { climoTileKey: `${latRounded},${lonRounded}` }}
-        );
+        await Profile.updateOne({ _id: profile._id }, { $set: { climoTileKey: key } });
       }
       const token = signToken({
         _id: profile._id,
@@ -250,7 +246,18 @@ const resolvers: IResolvers = {
       { user }: { user?: { _id: string } | null }) => {
       if (!user?._id) throw new AuthenticationError("Not authenticated");
       
-      const { latRounded, lonRounded } = snapTile(lat, lon, 0.1);
+      const { latRounded, lonRounded } = snapTile(lat, lon, TILE_STEP);
+      const key = tileKey(lat, lon, TILE_STEP);
+
+      if (!mongoose.connection.db) {
+  throw new Error("Database connection not established");
+}
+
+      // if climo already exists, mark ready immediately
+      const hasClimo = await mongoose.connection.db
+        .collection("climatology")
+        .findOne({ latRounded, lonRounded });
+
       console.log("… snapped coords", { latRounded, lonRounded });
 
       // reverse geocode (server-side)
@@ -281,16 +288,15 @@ const resolvers: IResolvers = {
         { $set: {
             homeLat: latRounded,
             homeLon: lonRounded,
-            climoStatus: "building",
-            locationLabel,
-            city,
-            region,
-            country,
+            climoTileKey: key,
+            climoStatus: hasClimo ? "ready" : "building",
+            locationLabel, city, region, country,
           },
         }
       );
         
       //enqueue a build for the snapped tile
+      if (!hasClimo) {
       await CLIMO_QUEUE.add(
         "build",
         { lat: latRounded, lon: lonRounded },
@@ -301,11 +307,34 @@ const resolvers: IResolvers = {
           backoff: { type: "exponential", delay: 2000 },
         }
       );
+    }
 
       console.log("✓ setUserLocation UPDATED profile label:", { locationLabel, city, region, country });
 
       return await Profile.findById(user._id);
     },
+
+      clearUserLocation: async (_: any, __: any, { user }) => {
+    if (!user?._id) throw new AuthenticationError("Not authenticated");
+
+    await Profile.updateOne(
+      { _id: user._id },
+      {
+        $set: {
+          homeLat: null,
+          homeLon: null,
+          climoStatus: null,      // or "idle"
+          climoTileKey: null,
+          locationLabel: null,
+          city: null,
+          region: null,
+          country: null,
+        },
+      }
+    );
+
+    return await Profile.findById(user._id);
+  },
 
     createBed: async (_: any, { width, length }: {width: number; length: number}) => {
       const bed = await Bed.create({ width, length, plants: [] });

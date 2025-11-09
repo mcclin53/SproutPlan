@@ -16,7 +16,10 @@
     "seedKcUpdate": "cd server && npm run seedKc",
     "build": "concurrently \"cd server && npm run build\" \"cd client && npm run build\"",
     "render-build": "npm install && npm run build",
-    "lint": "cd client && npm run lint"
+    "lint": "cd client && npm run lint",
+    "worker:dev": "cd server && npm run worker",
+    "start:worker": "cd server && npm run dev",
+    "dev": "concurrently \"npm run start:dev\" \"npm run start:worker\""
   },
   "keywords": [],
   "author": "",
@@ -30,10 +33,12 @@
     "@types/suncalc": "^1.9.2",
     "@typescript-eslint/eslint-plugin": "^8.32.1",
     "@typescript-eslint/parser": "^8.32.1",
+    "concurrently": "^9.2.1",
     "eslint": "^8.57.1",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^5.2.0",
     "globals": "^16.2.0",
+    "nodemon": "^3.1.10",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.32.1",
@@ -48,7 +53,6 @@
     "@typescript-eslint/eslint-plugin": "^6.0.0",
     "@typescript-eslint/parser": "^6.0.0",
     "apollo-server-express": "^3.13.0",
-    "concurrently": "^9.1.2",
     "date-fns": "^4.1.0",
     "eslint": "^8.45.0",
     "eslint-plugin-react-hooks": "^4.6.0",
@@ -59,7 +63,6 @@
     "react-dnd": "^16.0.1",
     "react-dnd-html5-backend": "^16.0.1",
     "react-merge-refs": "^3.0.2",
-    "suncalc": "^1.9.0",
-    "wait-on": "^7.2.0"
+    "suncalc": "^1.9.0"
   }
 }

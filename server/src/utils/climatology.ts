@@ -1,7 +1,8 @@
 import { MongoClient } from "mongodb";
+import { snapTile, TILE_STEP } from "./tiling.js";
 
-const MONGO_URI = process.env.MONGO_URI ?? "mongodb://127.0.0.1:27017/sproutplan";
-const DB_NAME = "sproutplan";
+const MONGO_URI = process.env.MONGO_URI ?? "mongodb://127.0.0.1:27017/SproutPlan";
+const DB_NAME = "SproutPlan";
 const COLL = "climatology";
 
 function toDOY(d: Date): number {
@@ -31,8 +32,7 @@ export async function getNormalsForDate(
   const client = new MongoClient(MONGO_URI);
   await client.connect();
   const db = client.db(DB_NAME);
-  const latRounded = Math.round(lat * 1000) / 1000;
-  const lonRounded = Math.round(lon * 1000) / 1000;
+  const { latRounded, lonRounded } = snapTile(lat, lon, TILE_STEP);
   const doc = await db.collection(COLL).findOne({ latRounded, lonRounded });
   await client.close();
 

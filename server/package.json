@@ -6,11 +6,15 @@
   "type": "module",
   "scripts": {
     "build": "tsc",
+    "build:watch": "tsc -w",
     "start": "node dist/server.js",
     "watch": "nodemon dist/server.js",
     "seed": "node dist/seeds/seedDatabase.js",
     "seedKc": "node dist/seeds/updateKc.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "worker": "node dist/workers/climoWorker.js",
+    "worker:watch": "nodemon dist/workers/climoWorker.js",
+    "dev": "concurrently -k -n BUILD,API,WORKER -c yellow,cyan,magenta \"npm run build:watch\" \"npm run watch\" \"npm run worker:watch\""
   },
   "keywords": [],
   "author": "",

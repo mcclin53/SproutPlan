@@ -1,10 +1,5 @@
 import './App.css';
-import {
-  ApolloClient,
-  InMemoryCache,
-  ApolloProvider,
-  createHttpLink,
-} from '@apollo/client';
+import { ApolloClient, InMemoryCache, ApolloProvider, createHttpLink } from '@apollo/client';
 import { setContext } from '@apollo/client/link/context';
 import { Outlet, Link } from 'react-router-dom';
 import Auth from './utils/auth';
@@ -22,6 +17,12 @@ const authLink = setContext((_, { headers }) => {
       authorization: token ? `Bearer ${token}` : '',
     },
   };
+});
+
+import { ApolloLink } from "@apollo/client";
+const debugLink = new ApolloLink((op, fwd) => {
+  console.log("op", op.operationName, op.variables, op.getContext().headers);
+  return fwd!(op);
 });
 
 const cache = new InMemoryCache({

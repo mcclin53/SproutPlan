@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useMutation, useQuery } from "@apollo/client";
-import { SET_USER_LOCATION } from "../utils/mutations";
+import { SET_USER_LOCATION, CLEAR_USER_LOCATION } from "../utils/mutations";
 import { QUERY_ME } from "../utils/queries";
 
 type GeoHit = {
@@ -40,7 +40,6 @@ async function geocodePlace(q: string): Promise<GeoHit[]> {
 }
 
 export default function LocationControls() {
-  // Force a fresh read on first mount after signup
   const { data, loading, startPolling, stopPolling } = useQuery(QUERY_ME, {
     fetchPolicy: "network-only",
     nextFetchPolicy: "cache-first",
@@ -49,9 +48,11 @@ export default function LocationControls() {
 
   const me = data?.me;
   const climoStatus: string | undefined = me?.climoStatus;
+  const hasLocation =
+    Number.isFinite(me?.homeLat) && Number.isFinite(me?.homeLon);
 
   const [setUserLocation, { loading: setLocLoading }] = useMutation(SET_USER_LOCATION, {
-    // Write result directly into QUERY_ME so UI updates immediately
+    // Write result directly into QUERY_ME
     update(cache, { data }) {
       const updated = data?.setUserLocation;
       if (!updated) return;
@@ -62,6 +63,24 @@ export default function LocationControls() {
     },
     onCompleted() {
       startPolling(4000);
+    },
+    onError(err) {
+      console.error("setUserLocation error:", {
+      graphQLErrors: err.graphQLErrors,
+      networkError: err.networkError,
+      message: err.message,
+      });
+    },
+  });
+
+  const [clearUserLocation, { loading: clearLoading }] = useMutation(CLEAR_USER_LOCATION, {
+    update(cache, { data }) {
+      const updated = data?.clearUserLocation;
+      if (!updated) return;
+      cache.writeQuery({ query: QUERY_ME, data: { me: updated } });
+    },
+    onCompleted() {
+      stopPolling();
     },
   });
 
@@ -104,17 +123,30 @@ export default function LocationControls() {
           timeout: 10000,
         });
       });
-      await setUserLocation({
-        variables: { lat: pos.coords.latitude, lon: pos.coords.longitude },
-      });
-    } catch {
+      const lat = pos?.coords?.latitude;
+    const lon = pos?.coords?.longitude;
+    console.log("enableLocation vars:", { lat, lon, finite: Number.isFinite(lat) && Number.isFinite(lon) });
+  
+    await setUserLocation({ variables: { lat, lon } });
+  } catch (e) {
+    console.error("enableLocation failed:", e);
       alert("Unable to get your device location. Try manual city/ZIP search.");
+    }
+  }
+
+  async function handleClear() {
+    try {
+      await clearUserLocation();
+      setQuery("");
+      setHits([]);
+    } catch {
+      // noop
     }
   }
 
   const friendly =
     me?.locationLabel ||
-    (Number.isFinite(me?.homeLat) && Number.isFinite(me?.homeLon)
+    (hasLocation
       ? `${Number(me!.homeLat!).toFixed(3)}, ${Number(me!.homeLon!).toFixed(3)}`
       : null);
 
@@ -139,9 +171,15 @@ export default function LocationControls() {
         </p>
 
         <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
-          <button className="btn" onClick={enableLocation} disabled={setLocLoading}>
-            {setLocLoading ? "Saving…" : "Enable Location"}
-          </button>
+          {!hasLocation ? (
+            <button className="btn" onClick={enableLocation} disabled={setLocLoading || clearLoading} title={hasLocation ? "You already have a saved location" : "Use device location"}>
+              {setLocLoading ? "Saving…" : "Enable Location"}
+            </button>
+          ) : (
+            <button className="btn" onClick={handleClear} disabled={clearLoading || setLocLoading} title="Remove saved location and stop polling">
+              {clearLoading ? "Clearing…" : "Clear Location"}
+            </button>
+          )}
 
           <form onSubmit={handleSearch} style={{ display: "flex", gap: 8, alignItems: "center" }}>
             <input
