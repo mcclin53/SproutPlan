@@ -6,7 +6,7 @@ import { dragConfigFrom } from "../utils/dragConfig";
 type Props = {
   lat: number;
   lon: number;
-  simDate?: Date;
+  simDate: Date;
   onIrrigate?: (mm: number) => void;
   initialPos?: { x: number; y: number };
   z?: number;
@@ -37,9 +37,8 @@ export default function Weather(props: Props) {
     })
   );
 
-  // If no simDate is provided, anchor the weather fetch to the time the user loaded the page
-  const [anchorDate] = useState(() => new Date());
-  const targetDate = simDate ?? anchorDate;
+  // Drive from simDate; fallback to "now" only if truly unset
+    const targetDate = simDate ?? new Date();
 
   const { day, hourly, loading, error } = useWeather(lat, lon, targetDate);
 
@@ -183,7 +182,7 @@ function HeaderRow() {
     <div
       style={{
         display: "grid",
-        gridTemplateColumns: "94px 1fr 1fr 1fr",
+        gridTemplateColumns: "94px 1fr 1fr 1fr 1fr",
         padding: "6px 10px",
         fontSize: 12,
         fontWeight: 600,
@@ -212,7 +211,7 @@ function HourRow({
     <div
       style={{
         display: "grid",
-        gridTemplateColumns: "94px 1fr 1fr 1fr",
+        gridTemplateColumns: "94px 1fr 1fr 1fr 1fr",
         padding: "6px 10px",
         borderTop: "1px solid rgba(0,0,0,0.06)",
         fontSize: 13,

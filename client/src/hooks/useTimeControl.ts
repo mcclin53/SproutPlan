@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 
 interface UseTimeControlOptions {
   initialDate?: Date;
@@ -15,10 +15,21 @@ type RunMode =
   | "rew2h"         // -2 hours per tick
   | "rew1d";        // -1 day per tick
 
+const STORAGE_KEY = "sproutplan.simDateISO";
+
 export const useTimeControl = ({
   initialDate = new Date(),
   speed = 200,
 }: UseTimeControlOptions = {}) => {
+  const initial = useMemo(() => {
+    const saved = typeof window !== "undefined" ? localStorage.getItem(STORAGE_KEY) : null;
+    if (saved) {
+      const d = new Date(saved);
+      if (!isNaN(d.getTime())) return d;
+    }
+    return initialDate ?? new Date();
+  }, [initialDate]);
+
   const [simulatedDate, setSimulatedDate] = useState<Date>(initialDate);
   const [mode, setMode] = useState<RunMode>("idle");
 
@@ -43,6 +54,12 @@ export const useTimeControl = ({
         return 0;
     }
   }, []);
+
+    useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, simulatedDate.toISOString());
+    } catch {}
+  }, [simulatedDate]);
 
   useEffect(() => {
     if (mode === "idle") return;

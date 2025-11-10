@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useQuery, useMutation } from "@apollo/client";
 import { GET_BEDS, GET_PLANTS } from "../utils/queries";
 import DigBed from "./DigBed";
@@ -21,16 +21,15 @@ import Weather from "./Weather";
 import { useWeather } from "../hooks/useWeather";
 import { useWater } from "../hooks/useWater";
 import PlantStats from "./PlantStats";
-import { guessRootDepthM } from "../utils/waterBand";
+// import { guessRootDepthM } from "../utils/waterBand";
 import BedStats from "./BedStats";
-import { useTimeControl } from "../hooks/useTimeControl";
-// import { useTemperature } from "../hooks/useTemperature";
 
   // Traverse City, MI (example coords)
   const GARDEN_LAT = 44.7629;
   const GARDEN_LON = -85.6210;
 
 export default function Garden() {
+  const initial = useMemo(() => new Date(), []);
   const [localSimulatedDate, setLocalSimulatedDate] = useState(new Date());
   const handleDateChange = useCallback((date: Date) => {
     setLocalSimulatedDate(date);
@@ -73,8 +72,6 @@ export default function Garden() {
     initialSoil: { capacityMm: 60, moistureMm: 36, percolationMmPerDay: 2 },
     waterUseFactor: 1.0,
     });
-
-    const { simulatedDate } = useTimeControl();
 
   useEffect(() => {
     if (!bedsData?.beds?.length) return;
@@ -245,7 +242,7 @@ export default function Garden() {
       <DigBed />
 
       <TimeController
-        initialDate={new Date()}
+        initialDate={initial}
         speed={200}
         onDateChange={handleDateChange}
       />
@@ -260,9 +257,8 @@ export default function Garden() {
 
         <div style={{ position: "fixed", right: 16, top: 16, width: 300 }}>
         <Weather 
-          key={(simulatedDate ?? new Date()).toISOString().slice(0,10)}
           lat={GARDEN_LAT} lon={GARDEN_LON} 
-          simDate={simulatedDate} 
+          simDate={localSimulatedDate} 
           onIrrigate={(mm) => irrigate(mm)} />
         </div>
 
