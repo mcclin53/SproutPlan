@@ -28,6 +28,8 @@ function isLeap(y: number) {
   return (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0;
 }
 
+const API_BASE = (import.meta.env.VITE_API_URL as string | undefined) || "";
+
 export function useWeather(lat: number, lon: number, targetDate: Date) {
   const [day, setDay] = useState<DayWeather | null>(null);
   const [hourly, setHourly] = useState<HourlyWeather | null>(null);
@@ -113,7 +115,7 @@ export function useWeather(lat: number, lon: number, targetDate: Date) {
           dayIndex: String(dayIndex),
         });
 
-        const res = await fetch(`/api/climo/hourly?${params.toString()}`, { signal: controller.signal });
+        const res = await fetch(`${API_BASE}/api/climo/hourly?${params.toString()}`, { signal: controller.signal });
         if (!res.ok) throw new Error(`Climo HTTP ${res.status}`);
         const data = await res.json() as {
           timeISO: string[];
