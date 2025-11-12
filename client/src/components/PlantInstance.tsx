@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from "react";
 import useDragPlant from "../hooks/useDragPlant";
 import { useGrowPlant } from "../hooks/useGrowPlant";
+import { useDeath } from "../hooks/useDeath";
 
 interface BasePlant {
   _id: string;
@@ -16,6 +17,8 @@ interface BasePlant {
   tempMax?: number;
   waterMin?: number;
   waterMax?: number;
+  graceHours?: GraceHours;
+  sunGraceDays?: number;
 }
 
 interface PlantInstance {
@@ -156,6 +159,40 @@ export default function PlantInstanceComponent({
     tempOkHours: tempOk,
   });
 }, [onLiveStats, plantInstance._id, grown?.height, grown?.canopyRadius, hoursToday, tempOk]);
+
+  const death = useDeath(
+    {
+      _id: plantInstance._id,
+      name: plantInstance.basePlant.name,
+      tempMin: plantInstance.basePlant.tempMin ?? null,
+      tempMax: plantInstance.basePlant.tempMax ?? null,
+      waterMin: plantInstance.basePlant.waterMin ?? null,
+      waterMax: plantInstance.basePlant.waterMax ?? null,
+      sunReq:  plantInstance.basePlant.sunReq  ?? null,
+    },
+    {
+      simulatedDate: simulatedDate ?? new Date(),
+      hourlyTempsC: hourlyTempC ?? null,
+      dailyMeanTempC: dayWeather?.tMeanC ?? null,
+      soilMoistureMm: soil?.moistureMm ?? null,
+      soilCapacityMm: null,
+      waterMinMaxMm: { min: plantInstance.basePlant.waterMin ?? null,
+                      max: plantInstance.basePlant.waterMax ?? null },
+      sunTodayHours: hoursToday,
+      sunMinHours: plantInstance.basePlant.sunReq ?? null,
+    },
+    {
+      // plant-specific grace overrides; hook falls back to its own defaults if missing
+      graceHours: {
+        cold: plantInstance.basePlant.graceHours?.cold ?? 0,
+        heat: plantInstance.basePlant.graceHours?.heat ?? 1,
+        dry:  plantInstance.basePlant.graceHours?.dry  ?? 12,
+        wet:  plantInstance.basePlant.graceHours?.wet  ?? 12,
+      },
+      sunDailyGraceDays: plantInstance.basePlant.sunGraceDays ?? 2,
+      onDeath: (info) => console.log("[Death]", plantInstance.basePlant.name, info),
+    }
+  );
 
   const imgField = plantInstance.basePlant.image;
   const remote =

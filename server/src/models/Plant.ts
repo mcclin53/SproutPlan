@@ -15,6 +15,13 @@ const plantSchema = new mongoose.Schema({
   waterMin: { type: Number },
   tempMax: { type: Number },
   tempMin: { type: Number },
+  graceHours: {
+    cold: { type: Number, default: 0 },
+    heat: { type: Number, default: 1 },
+    dry:  { type: Number, default: 12 },
+    wet:  { type: Number, default: 12 },
+  },
+  sunGraceDays: { type: Number, default: 2 },
   nutrients:{ type: String},
   pH: { type: Number},
   spacing: { type: Number},

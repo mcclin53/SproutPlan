@@ -35,11 +35,25 @@ const typeDefs = gql`
     homeLon: Float
   }
 
+  type GraceHours {
+    cold: Int!
+    heat: Int!
+    dry: Int!
+    wet: Int!
+  }
+
   type Plant {
     _id: ID!
     name: String!
     image: String
+    height: Float
+    canopyRadius: FLoat
+    sunReq: Float
     waterReq: String
+    waterMin: Float
+    waterMax: Float
+    tempMin: Float
+    tempMax: Float
     nutrients: String
     pH: Float
     spacing: Int
@@ -52,12 +66,16 @@ const typeDefs = gql`
     perennial: Boolean
     annual: Boolean
     frostZone: String
-    idealTemp: Int
     comments: String
     sunReq: Float
     baseGrowthRate: Float
     maxHeight: Float
     maxCanopyRadius: Float
+    kcInitial: Float
+    kcMid: Float
+    kcLate: Float
+    graceHours: GraceHours
+    sunGraceDays: Int
   }
     
   input PlantPositionInput {
@@ -65,6 +83,23 @@ const typeDefs = gql`
     x: Int!
     y: Int!
 }
+  input GraceHoursInput {
+    cold: Int
+    heat: Int
+    dry: Int
+    wet: Int
+  }
+
+  input UpdatePlantStressInput {
+    id: ID!
+    tempMin: Float
+    tempMax: Float
+    waterMin: Float
+    waterMax: Float
+    graceHours: GraceHoursInput
+    sunGraceDays: Int
+  }
+
   type PlantInstance {
     _id: ID!
     basePlant: Plant!
@@ -188,6 +223,7 @@ const typeDefs = gql`
     ): PlantGrowthSnapshot!
     setUserLocation(lat: Float!, lon: Float!): Profile!
     clearUserLocation: Profile!
+    updatePlantStress(input: UpdatePlantStressInput!): Plant!
   }
 `;
 

@@ -516,6 +516,13 @@ const resolvers: IResolvers = {
       return [];
     },
 
+    updatePlantStress: async (_: any, { input }: any) => {
+      const { id, ...rest } = input;
+      const updated = await Plant.findByIdAndUpdate(id, { $set: rest }, { new: true });
+      if (!updated) throw new Error("Plant not found");
+      return updated;
+    },
+
     applyMidnightGrowth: async (
         _,
         {
