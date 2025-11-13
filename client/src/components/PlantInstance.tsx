@@ -1,7 +1,15 @@
 import React, { useState, useMemo } from "react";
 import useDragPlant from "../hooks/useDragPlant";
 import { useGrowPlant } from "../hooks/useGrowPlant";
-import { useDeath } from "../hooks/useDeath";
+import { useDeath, DeathReason } from "../hooks/useDeath";
+
+type GraceHours = {
+  cold?: number;
+  heat?: number;
+  dry?: number;
+  wet?: number;
+};
+
 
 interface BasePlant {
   _id: string;
@@ -49,7 +57,9 @@ interface Props {
   height?: number;
   canopy?: number;
   sunHours?: number;
-  tempOkHours?: number; // keep for later if you wire it
+  tempOkHours?: number;
+  isDead?: boolean;
+  deathReason?: string;
 }) => void;
 }
 
@@ -124,13 +134,48 @@ export default function PlantInstanceComponent({
     [hourlyTempsC, dayWeather]
   );
 
+  const death = useDeath(
+    {
+      _id: plantInstance._id,
+      name: plantInstance.basePlant.name,
+      tempMin: plantInstance.basePlant.tempMin ?? null,
+      tempMax: plantInstance.basePlant.tempMax ?? null,
+      waterMin: plantInstance.basePlant.waterMin ?? null,
+      waterMax: plantInstance.basePlant.waterMax ?? null,
+      sunReq: null, // disable sun-based death for now
+    },
+    {
+      simulatedDate: simulatedDate ?? new Date(),
+      hourlyTempsC: hourlyTempC ?? null,
+      dailyMeanTempC: dayWeather?.tMeanC ?? null,
+      soilMoistureMm: soil?.moistureMm ?? null,
+      soilCapacityMm: null,
+      waterMinMaxMm: {
+        min: plantInstance.basePlant.waterMin ?? null,
+        max: plantInstance.basePlant.waterMax ?? null,
+      },
+      sunTodayHours: null,
+      sunMinHours: null,
+    },
+    {
+      graceHours: {
+        cold: plantInstance.basePlant.graceHours?.cold ?? 0,
+        heat: plantInstance.basePlant.graceHours?.heat ?? 1,
+        dry: plantInstance.basePlant.graceHours?.dry ?? 12,
+        wet: plantInstance.basePlant.graceHours?.wet ?? 12,
+      },
+      sunDailyGraceDays: plantInstance.basePlant.sunGraceDays ?? 2,
+      onDeath: (info) => console.log("[Death]", plantInstance.basePlant.name, info),
+    }
+  );
+
   const { grownPlants, sunlightHours, tempOkHours } = useGrowPlant(plantsForGrowth, {
     simulatedDate: simulatedDate ?? new Date(),
     sun,
     shadedIds,
     resetDaily: true,
     simulateMidnight: true,
-    persist: true,
+    persist: !death.dead,
     bedIdByPlant,
     modelVersion: "growth-v2-size-per-day",
     buildInputsForPlant: (p) => ({ 
@@ -148,51 +193,19 @@ export default function PlantInstanceComponent({
 
   const grown = grownPlants[0];
   const hoursToday = sunlightHours[plantInstance._id] ?? 0;
-
   const tempOk = tempOkHours?.[plantInstance._id] ?? 0;
-  React.useEffect(() => {
-  onLiveStats?.({
-    plantId: plantInstance._id,
-    height: grown?.height,
-    canopy: grown?.canopyRadius,
-    sunHours: hoursToday,
-    tempOkHours: tempOk,
-  });
-}, [onLiveStats, plantInstance._id, grown?.height, grown?.canopyRadius, hoursToday, tempOk]);
 
-  const death = useDeath(
-    {
-      _id: plantInstance._id,
-      name: plantInstance.basePlant.name,
-      tempMin: plantInstance.basePlant.tempMin ?? null,
-      tempMax: plantInstance.basePlant.tempMax ?? null,
-      waterMin: plantInstance.basePlant.waterMin ?? null,
-      waterMax: plantInstance.basePlant.waterMax ?? null,
-      sunReq:  plantInstance.basePlant.sunReq  ?? null,
-    },
-    {
-      simulatedDate: simulatedDate ?? new Date(),
-      hourlyTempsC: hourlyTempC ?? null,
-      dailyMeanTempC: dayWeather?.tMeanC ?? null,
-      soilMoistureMm: soil?.moistureMm ?? null,
-      soilCapacityMm: null,
-      waterMinMaxMm: { min: plantInstance.basePlant.waterMin ?? null,
-                      max: plantInstance.basePlant.waterMax ?? null },
-      sunTodayHours: hoursToday,
-      sunMinHours: plantInstance.basePlant.sunReq ?? null,
-    },
-    {
-      // plant-specific grace overrides; hook falls back to its own defaults if missing
-      graceHours: {
-        cold: plantInstance.basePlant.graceHours?.cold ?? 0,
-        heat: plantInstance.basePlant.graceHours?.heat ?? 1,
-        dry:  plantInstance.basePlant.graceHours?.dry  ?? 12,
-        wet:  plantInstance.basePlant.graceHours?.wet  ?? 12,
-      },
-      sunDailyGraceDays: plantInstance.basePlant.sunGraceDays ?? 2,
-      onDeath: (info) => console.log("[Death]", plantInstance.basePlant.name, info),
-    }
-  );
+  React.useEffect(() => {
+    onLiveStats?.({
+      plantId: plantInstance._id,
+      height: grown?.height,
+      canopy: grown?.canopyRadius,
+      sunHours: hoursToday,
+      tempOkHours: tempOk,
+      isDead: death.dead,
+      deathReason: death.reason ?? undefined,
+    });
+  }, [onLiveStats, plantInstance._id, grown?.height, grown?.canopyRadius, hoursToday, tempOk, death.dead, death.reason]);
 
   const imgField = plantInstance.basePlant.image;
   const remote =
@@ -231,13 +244,16 @@ export default function PlantInstanceComponent({
         top: plantInstance.y,
         left: plantInstance.x,
         opacity: isDraggingPlant ? 0.5 : 1,
-        // filter: isShaded ? "brightness(0.7)" : "none",
         cursor: "move",
         width: 40,
         height: 40,
         transition: "opacity 0.3s ease, filter 0.3s ease",
       }}
-      title={`${plantInstance.basePlant.name} — ${hoursToday.toFixed(1)}h sun today`}
+      title={
+        death.dead
+          ? `${plantInstance.basePlant.name} — ☠️ Died: ${death.reason ?? "unknown"}`
+          : `${plantInstance.basePlant.name} — ${hoursToday.toFixed(1)}h sun today`
+      }
     >
       <img
         src={imageSrc}
@@ -246,8 +262,10 @@ export default function PlantInstanceComponent({
         style={{
           width: 40,
           height: 40,
-          filter: `brightness(${0.6 + effectiveLight * 0.8})`,
-          boxShadow: boxShadowStyle,
+          filter: death.dead
+            ? "grayscale(1) brightness(0.6)"
+            : `brightness(${0.6 + effectiveLight * 0.8})`,
+          boxShadow: death.dead ? "none" : boxShadowStyle,
           transition: "filter 0.5s ease-in-out, box-shadow 0.5s ease-in-out",
           borderRadius: "50%",
         }}
@@ -272,6 +290,21 @@ export default function PlantInstanceComponent({
           transition: "all 0.5s ease-in-out",
         }}
       />
+      {death.dead && (
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            pointerEvents: "none",
+            fontSize: 22,
+          }}
+        >
+          ☠️
+        </div>
+      )}
       <button
         className="remove-plant-button"
         title="Remove Plant"

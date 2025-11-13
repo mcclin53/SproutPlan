@@ -1,6 +1,3 @@
-// server/scripts/maintenance.ts
-// ESM-compatible maintenance script for one-off DB updates/backfills.
-
 import dotenv from "dotenv";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -38,17 +35,34 @@ function parseFlags(argv: string[]): Flags {
   return f;
 }
 
+// Normalize updateOne/updateMany result across driver versions
+function fmtUpdateResult(res: any) {
+  const matched = res?.matchedCount ?? res?.n ?? 0;
+  const modified = res?.modifiedCount ?? res?.nModified ?? 0;
+  const upserted =
+    res?.upsertedCount ??
+    (Array.isArray(res?.upserted) ? res.upserted.length : 0) ??
+    0;
+
+  return { matched, modified, upserted };
+}
+
 async function backfillProfilesRole(dryRun = false) {
   // Sets role: "user" where missing
   const filter = { role: { $exists: false } };
   const update = { $set: { role: "user" } };
+
   if (dryRun) {
     const count = await Profile.countDocuments(filter);
     console.log(`[DRY] Profiles needing role: ${count}`);
     return;
   }
+
   const res = await Profile.updateMany(filter, update);
-  console.log(`✓ Backfilled profiles.role → "user": matched=${res.matchedCount ?? res.matched}, modified=${res.modifiedCount ?? res.modified}`);
+  const { matched, modified } = fmtUpdateResult(res);
+  console.log(
+    `✓ Backfilled profiles.role → "user": matched=${matched}, modified=${modified}`
+  );
 }
 
 async function promoteAdmin(email: string, dryRun = false) {
@@ -58,13 +72,17 @@ async function promoteAdmin(email: string, dryRun = false) {
   }
   const filter = { email };
   const update = { $set: { role: "admin" } };
+
   if (dryRun) {
     const doc = await Profile.findOne(filter).lean();
     console.log(`[DRY] Would promote: ${doc?._id ?? "NOT FOUND"} (${email})`);
     return;
   }
+
   const res = await Profile.updateOne(filter, update);
-  if (res.matchedCount ?? res.matched) {
+  const { matched } = fmtUpdateResult(res);
+
+  if (matched > 0) {
     console.log(`✓ Promoted ${email} to admin`);
   } else {
     console.log(`✗ No profile found for ${email}`);
@@ -90,7 +108,7 @@ async function backfillPlantsStressDefaults(dryRun = false) {
     },
   };
 
-  // 2) (Optional) set numeric thresholds if entirely missing (leave existing values alone)
+  // 2) set numeric thresholds if entirely missing (leave existing values alone)
   const filter2 = {
     $or: [
       { tempMin: { $exists: false } },
@@ -100,7 +118,7 @@ async function backfillPlantsStressDefaults(dryRun = false) {
     ],
   };
   const update2 = {
-    $setOnInsert: {}, // not used here, but placeholder if you switch to upserts
+    $setOnInsert: {}, // placeholder if you switch to upserts later
     $set: {
       tempMin: 5,
       tempMax: 32,
@@ -118,14 +136,20 @@ async function backfillPlantsStressDefaults(dryRun = false) {
   }
 
   const res1 = await Plant.updateMany(filter1, update1);
-  console.log(
-    `✓ Backfilled graceHours/sunGraceDays: matched=${res1.matchedCount ?? res1.matched}, modified=${res1.modifiedCount ?? res1.modified}`
-  );
+  {
+    const { matched, modified } = fmtUpdateResult(res1);
+    console.log(
+      `✓ Backfilled graceHours/sunGraceDays: matched=${matched}, modified=${modified}`
+    );
+  }
 
   const res2 = await Plant.updateMany(filter2, update2);
-  console.log(
-    `✓ Backfilled tempMin/Max & waterMin/Max (where missing): matched=${res2.matchedCount ?? res2.matched}, modified=${res2.modifiedCount ?? res2.modified}`
-  );
+  {
+    const { matched, modified } = fmtUpdateResult(res2);
+    console.log(
+      `✓ Backfilled tempMin/Max & waterMin/Max: matched=${matched}, modified=${modified}`
+    );
+  }
 }
 
 async function main() {

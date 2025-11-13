@@ -4,10 +4,10 @@ import bcrypt from 'bcrypt';
 export type ClimoStatus = 'idle' | 'building' | 'ready' | 'error';
 
 interface IProfile extends Document {
-  _id: string;
   username: string;
   email: string;
   password:string;
+  role: "user" | "admin"; 
   saved: string[];
   homeLat?: number | null;
   homeLon?: number | null;
@@ -31,6 +31,11 @@ const profileSchema = new Schema<IProfile>(
       match: [/.+@.+\..+/, 'Must match an email address!'],
     },
     password: { type: String, required: true, minlength: 5 },
+    role: {
+      type: String,
+      enum: ["user", "admin"],
+      default: "user", // used for NEW profiles
+    },
     saved: [{ type: Schema.Types.ObjectId, ref: 'Bed' }],
     homeLat: { type: Number, default: null },
     homeLon: { type: Number, default: null },

@@ -20,7 +20,7 @@
     "worker:dev": "cd server && npm run worker",
     "start:worker": "cd server && npm run dev",
     "dev": "concurrently \"npm run start:dev\" \"npm run start:worker\"",
-    "maint": "ts-node server/scripts/maintenance.ts"
+    "maint": "cd server && node --loader ts-node/esm src/scripts/maintenance.ts"
   },
   "keywords": [],
   "author": "",

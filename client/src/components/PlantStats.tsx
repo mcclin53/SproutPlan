@@ -4,6 +4,8 @@ import { GET_GROWTH_SNAPSHOTS } from "../utils/queries";
 import { computeWaterComfortBand, guessRootDepthM } from "../utils/waterBand";
 import { useDragComponent } from "../hooks/useDragComponent";
 import { dragConfigFrom } from "../utils/dragConfig";
+import type { DeathInfo } from "../hooks/useDeath";
+import { DeathReason } from "../hooks/useDeath";
 
 const BASE_URL = (import.meta.env.VITE_API_URL as string) || "http://localhost:3001";
 
@@ -51,6 +53,7 @@ type Props = {
   z?: number;
   grid?: { x: number; y: number };
   persistKeyPrefix?: string;
+  deathInfo?: DeathInfo;
 };
 
 function clamp01(x: number) {
@@ -75,7 +78,32 @@ export default function PlantStats(props: Props) {
     z,
     grid,
     persistKeyPrefix = "PlantStats@",
+    deathInfo,
   } = props;
+
+  const isDead = deathInfo?.dead ?? false;
+
+  const deathLabel = useMemo(() => {
+    if (!deathInfo?.reason) return null;
+    switch (deathInfo.reason) {
+      case DeathReason.TooCold:
+        return "Died from cold stress";
+      case DeathReason.TooHot:
+        return "Died from heat stress";
+      case DeathReason.TooDry:
+        return "Died from drought";
+      case DeathReason.TooWet:
+        return "Died from overwatering";
+      case DeathReason.NotEnoughSun:
+        return "Died from lack of sun";
+      default:
+        return "Plant died";
+    }
+  }, [deathInfo]);
+
+  const diedOn = deathInfo?.diedAt
+    ? new Date(deathInfo.diedAt).toLocaleDateString()
+    : null;
 
   const { rootRef, handleRef, style } = useDragComponent(
     dragConfigFrom({
@@ -191,8 +219,12 @@ export default function PlantStats(props: Props) {
   const sunEff = sunReq > 0 && sunHoursForToday != null ? clamp01(sunHoursForToday / sunReq) : 0;
   const tempEff = clamp01((todayTempOkHours ?? 24) / 24);
 
-  const expectedGrowth = baseGrowthRate * sunEff * waterEff * tempEff;
-  const face = growthDelta == null ? "😐" : growthDelta + 1e-6 >= expectedGrowth ? "🙂" : "🙁";
+  const expectedGrowthRaw = baseGrowthRate * sunEff * waterEff * tempEff;
+
+  const expectedGrowth = isDead ? 0 : expectedGrowthRaw;
+  const growthDeltaDisplay = isDead ? null : growthDelta;
+
+  const face = isDead ? "☠️" : growthDeltaDisplay == null ? "😐" : growthDeltaDisplay + 1e-6 >= expectedGrowth ? "🙂" : "🙁";
 
   return (
     <div ref={rootRef} className="card-shell" style={ style }>
@@ -227,9 +259,23 @@ export default function PlantStats(props: Props) {
             >
               {bp.name ?? "Plant"}
             </h3>
+            {isDead && (
+              <span
+                title={deathLabel ?? "Plant died"}
+                style={{ fontSize: 18 }}
+              >
+                ☠️
+              </span>
+            )}
             <div style={{ fontSize: 12, color: "#6b7280" }}>
               {daysOld != null ? `${daysOld} days old` : "—"}
             </div>
+            {isDead && (
+            <div style={{ fontSize: 12, color: "#b91c1c" }}>
+              {deathLabel}
+              {diedOn ? ` (on ${diedOn})` : ""}
+            </div>
+          )}
           </div>
           {onClose && (
             <button className="close-btn" onClick={onClose} aria-label="Close" title="Close">
@@ -247,7 +293,7 @@ export default function PlantStats(props: Props) {
             <div style={{ color: "#4b5563" }}>Growth (vs expected)</div>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <span style={{ fontWeight: 600 }}>
-                {growthDelta == null ? "—" : fmtNum(growthDelta)}
+                {growthDeltaDisplay == null ? "—" : fmtNum(growthDeltaDisplay)}
               </span>
               <span style={{ color: "#9ca3af" }}>/</span>
               <span style={{ color: "#6b7280" }}>{fmtNum(expectedGrowth)}</span>

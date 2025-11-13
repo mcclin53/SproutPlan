@@ -10,6 +10,7 @@ const typeDefs = gql`
     username: String!
     email: String!
     password: String!
+    role: String!
     saved: [Bed]
     homeLat: Float
     homeLon: Float
@@ -47,7 +48,7 @@ const typeDefs = gql`
     name: String!
     image: String
     height: Float
-    canopyRadius: FLoat
+    canopyRadius: Float
     sunReq: Float
     waterReq: String
     waterMin: Float
@@ -67,7 +68,6 @@ const typeDefs = gql`
     annual: Boolean
     frostZone: String
     comments: String
-    sunReq: Float
     baseGrowthRate: Float
     maxHeight: Float
     maxCanopyRadius: Float
