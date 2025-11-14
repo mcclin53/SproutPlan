@@ -12,6 +12,8 @@ import { MongoClient } from "mongodb";
 import { Queue } from "bullmq";
 import { getNormalsForDate } from "../utils/climatology.js";
 import { snapTile, tileKey, TILE_STEP } from "../utils/tiling.js";
+import { computeBaseGrowthRate } from "../../../shared/growth.js";
+import { ForbiddenError } from "apollo-server-express";
 
 const MODEL_VERSION = "growth-v2-size-per-day";
 const MONGO_URI = process.env.MONGO_URI!;
@@ -201,7 +203,7 @@ const resolvers: IResolvers = {
         throw new AuthenticationError("Incorrect credentials");
       }
       const token = signToken({
-        _id: profile._id,
+        _id: String(profile._id as any),
         email: profile.email,
         username: profile.username,
       });
@@ -235,7 +237,7 @@ const resolvers: IResolvers = {
         await Profile.updateOne({ _id: profile._id }, { $set: { climoTileKey: key } });
       }
       const token = signToken({
-        _id: profile._id,
+        _id: String(profile._id as any),
         email: profile.email,
         username: profile.username,
       });
@@ -521,6 +523,43 @@ const resolvers: IResolvers = {
       const updated = await Plant.findByIdAndUpdate(id, { $set: rest }, { new: true });
       if (!updated) throw new Error("Plant not found");
       return updated;
+    },
+
+    createPlant: async (_: unknown, { input }: { input: any }, context: { user?: { _id: string } | null }) => {
+      const { user } = context;
+
+      // Must be logged in
+      if (!user?._id) {
+        throw new AuthenticationError("Not authenticated");
+      }
+
+      // Must be an admin
+      const profile = await Profile.findById(user._id);
+      if (!profile || profile.role !== "admin") {
+        throw new ForbiddenError("Only admins can create plants");
+      }
+
+      // Compute baseGrowthRate using shared growth.ts helper
+      //    Only if it's missing or invalid on the incoming input
+      const hasBase =
+        input.baseGrowthRate != null &&
+        !Number.isNaN(Number(input.baseGrowthRate));
+
+      if (!hasBase) {
+        const maxHeight = input.maxHeight ?? null;
+        const maturitySpec = input.daysToHarvest ?? input.maturityDays ?? null;
+
+        const computed = computeBaseGrowthRate(maxHeight, maturitySpec);
+
+        if (computed != null) {
+          input.baseGrowthRate = computed;
+        }
+      }
+
+      // Create the Plant document in Mongo
+      const plant = await Plant.create(input);
+
+      return plant;
     },
 
     applyMidnightGrowth: async (

@@ -31,6 +31,7 @@ export const QUERY_ME = gql`
       region
       country
       climoStatus
+      role
     }
   }
 `;

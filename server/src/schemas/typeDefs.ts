@@ -36,11 +36,51 @@ const typeDefs = gql`
     homeLon: Float
   }
 
+  input PlantInput {
+    name: String!
+    image: String
+    height: Float
+    canopyRadius: Float
+    maxHeight: Float
+    maxCanopyRadius: Float
+    sunReq: Float!
+    baseGrowthRate: Float
+    currentGrowthRate: Float
+    maturityDays: Int
+    waterMax: Float
+    waterMin: Float
+    tempMax: Float
+    tempMin: Float
+    graceHours: GraceHoursInput
+    sunGraceDays: Int
+    nutrients: String
+    pH: Float
+    spacing: Float
+    companions: [String!]
+    enemies: [String!]
+    diseases: [String!]
+    pests: [String!]
+    daysToHarvest: String
+    perennial: Boolean
+    annual: Boolean
+    comments: String
+    kcProfile: KcProfileInput
+    kcInitial: Float
+    kcMid: Float
+    kcLate: Float
+  }
+
   type GraceHours {
     cold: Int!
     heat: Int!
     dry: Int!
     wet: Int!
+  }
+
+  type KcProfile {
+    initial: Float
+    mid: Float
+    late: Float
   }
 
   type Plant {
@@ -69,6 +109,7 @@ const typeDefs = gql`
     frostZone: String
     comments: String
     baseGrowthRate: Float
+    currentGrowthRate: Float
     maxHeight: Float
     maxCanopyRadius: Float
     kcInitial: Float
@@ -224,6 +265,7 @@ const typeDefs = gql`
     setUserLocation(lat: Float!, lon: Float!): Profile!
     clearUserLocation: Profile!
     updatePlantStress(input: UpdatePlantStressInput!): Plant!
+    createPlant(input: PlantInput!): Plant!
   }
 `;
 

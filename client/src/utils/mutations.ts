@@ -242,3 +242,15 @@ export const APPLY_MIDNIGHT_GROWTH = gql`
     }
   }
 `;
+
+export const CREATE_PLANT = gql`
+  mutation CreatePlant($input: PlantInput!) {
+    createPlant(input: $input) {
+      _id
+      name
+      maxHeight
+      daysToHarvest
+      baseGrowthRate
+    }
+  }
+`;
