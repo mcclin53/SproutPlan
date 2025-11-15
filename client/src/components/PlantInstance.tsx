@@ -2,6 +2,7 @@ import React, { useState, useMemo } from "react";
 import useDragPlant from "../hooks/useDragPlant";
 import { useGrowPlant } from "../hooks/useGrowPlant";
 import { useDeath, DeathReason } from "../hooks/useDeath";
+import { resolvePlantImageSrc, handleImageError } from "../utils/plantImage";
 
 type GraceHours = {
   cold?: number;
@@ -81,7 +82,7 @@ export default function PlantInstanceComponent({
   onPlantClick,
   onLiveStats,
 }: Props) {
-  const [failedImages, setFailedImages] = useState(false);
+  const bp = plantInstance.basePlant;
 
   const { ref, isDraggingPlant } = useDragPlant({
     plantInstanceId: plantInstance._id,
@@ -207,15 +208,6 @@ export default function PlantInstanceComponent({
     });
   }, [onLiveStats, plantInstance._id, grown?.height, grown?.canopyRadius, hoursToday, tempOk, death.dead, death.reason]);
 
-  const imgField = plantInstance.basePlant.image;
-  const remote =
-    imgField && imgField.startsWith("/")
-      ? `${BASE_URL}${imgField}`
-      : imgField
-      ? `${BASE_URL}/images/${imgField}`
-      : `${BASE_URL}/images/placeholder.png`;
-  const imageSrc = failedImages ? `${BASE_URL}/images/placeholder.png` : remote;
-
   const azimuth = sunDirection?.azimuth ?? 180; // Default south
   const elevation = sunDirection?.elevation ?? 45; // Default mid-sky
   const isNight = elevation <= 0;
@@ -256,7 +248,7 @@ export default function PlantInstanceComponent({
       }
     >
       <img
-        src={imageSrc}
+        src={resolvePlantImageSrc(bp.image)}
         alt={plantInstance.basePlant.name}
         title="Click for Plant Stats"
         style={{
@@ -269,13 +261,7 @@ export default function PlantInstanceComponent({
           transition: "filter 0.5s ease-in-out, box-shadow 0.5s ease-in-out",
           borderRadius: "50%",
         }}
-        onError={(e) => {
-          setFailedImages(true);
-          const target = e.target as HTMLImageElement;
-          if (!target.src.endsWith("/images/placeholder.png")) {
-            target.src = `${BASE_URL}/images/placeholder.png`;
-          }
-        }}
+        onError={handleImageError}
       />
       <div
         style={{

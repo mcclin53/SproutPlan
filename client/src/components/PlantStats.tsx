@@ -6,6 +6,7 @@ import { useDragComponent } from "../hooks/useDragComponent";
 import { dragConfigFrom } from "../utils/dragConfig";
 import type { DeathInfo } from "../hooks/useDeath";
 import { DeathReason } from "../hooks/useDeath";
+import { resolvePlantImageSrc, handleImageError } from "../utils/plantImage";
 
 const BASE_URL = (import.meta.env.VITE_API_URL as string) || "http://localhost:3001";
 
@@ -118,17 +119,6 @@ export default function PlantStats(props: Props) {
   const sunReq = bp.sunReq ?? 8;                 // hours/day for 100% efficiency
   const baseGrowthRate = bp.baseGrowthRate ?? 1; // size units/day @ 100%
 
-  // Image selection
-  const [imgFailed, setImgFailed] = useState(false);
-  const imageSrc = useMemo(() => {
-    if (imgFailed) return `${BASE_URL}/images/placeholder.png`;
-    const imgField = bp.image;
-    if (!imgField) return `${BASE_URL}/images/placeholder.png`;
-    if (imgField.startsWith("http://") || imgField.startsWith("https://")) return imgField;
-    if (imgField.startsWith("/")) return `${BASE_URL}${imgField}`;
-    return `${BASE_URL}/images/${imgField}`;
-  }, [bp.image, imgFailed]);
-
   // Query snapshots for growth deltas & persisted sunlight
   const { data } = useQuery(GET_GROWTH_SNAPSHOTS, {
     variables: { plantInstanceId: plant._id },
@@ -233,7 +223,7 @@ export default function PlantStats(props: Props) {
         <div 
           style={{ display: "flex", alignItems: "center", gap: 12, cursor: "move" }}>
           <img
-            src={imageSrc}
+            src={resolvePlantImageSrc(bp.image)}
             alt={bp.name}
             style={{
               height: 48,
@@ -242,10 +232,7 @@ export default function PlantStats(props: Props) {
               objectFit: "cover",
               border: "1px solid #e5e7eb",
             }}
-            onError={(e) => {
-              setImgFailed(true);
-              (e.target as HTMLImageElement).src = `${BASE_URL}/images/placeholder.png`;
-            }}
+            onError={handleImageError}
           />
           <div style={{ flex: 1, minWidth: 0 }}>
             <h3
