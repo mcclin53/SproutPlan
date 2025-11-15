@@ -12,7 +12,7 @@ import { MongoClient } from "mongodb";
 import { Queue } from "bullmq";
 import { getNormalsForDate } from "../utils/climatology.js";
 import { snapTile, tileKey, TILE_STEP } from "../utils/tiling.js";
-import { computeBaseGrowthRate } from "../../../shared/growth.js";
+import { computeBaseGrowthRate } from "../utils/growth.js";
 import { ForbiddenError } from "apollo-server-express";
 
 const MODEL_VERSION = "growth-v2-size-per-day";

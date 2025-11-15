@@ -64,7 +64,6 @@ const typeDefs = gql`
     perennial: Boolean
     annual: Boolean
     comments: String
-    kcProfile: KcProfileInput
     kcInitial: Float
     kcMid: Float
     kcLate: Float
@@ -75,12 +74,6 @@ const typeDefs = gql`
     heat: Int!
     dry: Int!
     wet: Int!
-  }
-
-  type KcProfile {
-    initial: Float
-    mid: Float
-    late: Float
   }
 
   type Plant {

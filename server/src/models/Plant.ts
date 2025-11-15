@@ -33,11 +33,6 @@ const plantSchema = new mongoose.Schema({
   perennial: { type: Boolean },
   annual: { type: Boolean},
   comments: {type: String},
-  kcProfile: {
-  initial: { type: Number },
-  mid:     { type: Number },
-  late:    { type: Number },
-  },
   kcInitial: {type: Number},
   kcMid: {type: Number},
   kcLate: {type: Number}

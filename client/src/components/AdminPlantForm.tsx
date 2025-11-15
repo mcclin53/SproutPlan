@@ -89,7 +89,7 @@ export const AdminPlantForm: React.FC<AdminPlantFormProps> = ({ onCreated }) => 
   };
 
   return (
-    <form onSubmit={handleSubmit} className="admin-plant-form">
+    <form onSubmit={handleSubmit} className="card-shell, stat-card">
       <h2>Add Plant (Admin)</h2>
 
       <label>

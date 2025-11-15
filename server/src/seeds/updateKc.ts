@@ -50,16 +50,15 @@ async function main() {
     if (!prof) continue;
 
     await Plant.updateOne(
-      { _id: p._id },
-      {
-        $set: {
-          kcProfile: prof,
-          kcInitial: prof.initial,
-          kcMid: prof.mid,
-          kcLate: prof.late,
-        }
-      }
-    );
+  { _id: p._id },
+  {
+    $set: {
+      kcInitial: prof.initial,
+      kcMid: prof.mid,
+      kcLate: prof.late,
+    },
+  }
+);
     console.log(`✔ ${p.name} -> Kc set ${prof.initial}/${prof.mid}/${prof.late}`);
     updated++;
   }
