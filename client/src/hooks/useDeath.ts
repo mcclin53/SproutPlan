@@ -58,7 +58,9 @@ export function useDeath(
   plant: PlantBasics,
   inputs: Inputs,
   opts: Options = {}
-): DeathInfo {
+): DeathInfo & {
+  killNow: (reason: DeathReason, extraDetails?: Record<string, unknown>) => void;
+} {
   const {
     simulatedDate,
     hourlyTempsC,
@@ -117,6 +119,13 @@ export function useDeath(
     };
     setState(info);
     opts.onDeath?.(info);
+  };
+
+  const killNow = (
+    reason: DeathReason,
+    extraDetails?: Record<string, unknown>
+  ) => {
+    declareDeath(reason, { ...extraDetails, debugKill: true });
   };
 
   // ---- Hourly checks: TEMP + WATER -------------------------------
@@ -229,5 +238,8 @@ export function useDeath(
     state.dead,
   ]);
 
-  return state;
+  return {
+    ...state,
+    killNow,
+  };
 }

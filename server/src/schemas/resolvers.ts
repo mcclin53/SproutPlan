@@ -556,6 +556,10 @@ const resolvers: IResolvers = {
         }
       }
 
+      if (input.maxCanopyRadius != null) {
+        input.maxCanopyRadius = Number(input.maxCanopyRadius);
+      }
+
       // Create the Plant document in Mongo
       const plant = await Plant.create(input);
 

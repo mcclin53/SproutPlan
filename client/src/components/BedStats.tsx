@@ -2,6 +2,7 @@ import React, { useMemo, useState } from "react";
 import { useQuery } from "@apollo/client";
 import { useDragComponent } from "../hooks/useDragComponent";
 import { dragConfigFrom } from "../utils/dragConfig";
+import { Row } from "./common/Row";
 
 type SoilLike = {
   moistureMm: number;
@@ -127,33 +128,3 @@ export default function BedStats(props: Props) {
     </div>
   );
 }
-
-function Row({
-  label,
-  value,
-  sub,
-}: {
-  label: string;
-  value: string | number;
-  sub?: string;
-}) {
-  return (
-    <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between" }}>
-      <div style={{ color: "#4b5563" }}>{label}</div>
-      <div style={{ textAlign: "right" }}>
-        <div style={{ fontWeight: 600 }}>{value}</div>
-        {sub ? <div style={{ fontSize: 12, color: "#6b7280" }}>{sub}</div> : null}
-      </div>
-    </div>
-  );
-}
-
-// Optional helper to later add NPK:
-// function formatNPK(n?: { N?: string; P?: string; K?: string }) {
-//   if (!n) return "—";
-//   const parts = [];
-//   if (n.N) parts.push(`N: ${n.N}`);
-//   if (n.P) parts.push(`P: ${n.P}`);
-//   if (n.K) parts.push(`K: ${n.K}`);
-//   return parts.length ? parts.join(" · ") : "—";
-// }

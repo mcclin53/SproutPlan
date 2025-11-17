@@ -249,6 +249,7 @@ export const CREATE_PLANT = gql`
       _id
       name
       maxHeight
+      maxCanopyRadius
       daysToHarvest
       baseGrowthRate
     }

@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { useWeather } from "../hooks/useWeather";
 import { useDragComponent } from "../hooks/useDragComponent";
 import { dragConfigFrom } from "../utils/dragConfig";
+import { Row } from "./common/Row";
 
 type Props = {
   lat: number;
@@ -222,31 +223,6 @@ function HourRow({
       <div style={{ textAlign: "right" }}>{fixedOrDash(hour.tempF, 1)}</div>
       <div style={{ textAlign: "right" }}>{fixedOrDash(hour.precipMm, 1)}</div>
       <div style={{ textAlign: "right" }}>{fixedOrDash(hour.et0Mm, 2)}</div>
-    </div>
-  );
-}
-
-function Row({
-  label,
-  value,
-  unit,
-  sub,
-}: {
-  label: string;
-  value: string | number | undefined | null;
-  unit?: string;
-  sub?: string;
-}) {
-  
-  return (
-    <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between" }}>
-      <div style={{ color: "#4b5563" }}>{label}</div>
-      <div style={{ textAlign: "right" }}>
-        <div style={{ fontWeight: 600 }}>
-          {value != null && value !== "" ? value : "—"} {unit ?? ""}
-        </div>
-        {sub ? <div style={{ fontSize: 12, color: "#6b7280" }}>{sub}</div> : null}
-      </div>
     </div>
   );
 }

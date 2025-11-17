@@ -3,6 +3,7 @@ import { useMutation, useQuery } from "@apollo/client";
 import { CREATE_PLANT } from "../utils/mutations";
 import { QUERY_ME } from "../utils/queries";
 import { useBaseGrowthRate } from "../hooks/useBaseGrowthRate";
+import { Row } from "./common/Row";
 
 interface AdminPlantFormProps {
   onCreated?: () => void;
@@ -20,8 +21,8 @@ export const AdminPlantForm: React.FC<AdminPlantFormProps> = ({ onCreated }) => 
   const [name, setName] = useState("");
   const [image, setImage] = useState("");
   const [maxHeight, setMaxHeight] = useState<number | "">(30);
+  const [maxCanopyRadius, setMaxCanopyRadius] = useState<number | "">("");
   const [daysToHarvest, setDaysToHarvest] = useState<string>("");
-
   const [sunReq, setSunReq] = useState<number | "">(8);
   const [waterMin, setWaterMin] = useState<number | "">("");
   const [waterMax, setWaterMax] = useState<number | "">("");
@@ -45,6 +46,12 @@ export const AdminPlantForm: React.FC<AdminPlantFormProps> = ({ onCreated }) => 
 
     const maxHeightNum =
       typeof maxHeight === "number" ? maxHeight : Number(maxHeight) || undefined;
+
+      const maxCanopyRadiusNum =
+    typeof maxCanopyRadius === "number"
+      ? maxCanopyRadius
+      : Number(maxCanopyRadius) || undefined;
+
     const sunReqNum =
       typeof sunReq === "number" ? sunReq : Number(sunReq) || undefined;
 
@@ -52,6 +59,7 @@ export const AdminPlantForm: React.FC<AdminPlantFormProps> = ({ onCreated }) => 
       name: name.trim(),
       image: image.trim() || undefined,
       maxHeight: maxHeightNum,
+      maxCanopyRadius: maxCanopyRadiusNum,
       sunReq: sunReqNum,
       daysToHarvest: daysToHarvest.trim() || undefined,
       baseGrowthRate: baseGrowthRate ?? undefined,
@@ -75,6 +83,7 @@ export const AdminPlantForm: React.FC<AdminPlantFormProps> = ({ onCreated }) => 
       setName("");
       setImage("");
       setMaxHeight(30);
+      setMaxCanopyRadius(30);
       setDaysToHarvest("");
       setSunReq(8);
       setWaterMin("");
@@ -92,136 +101,205 @@ export const AdminPlantForm: React.FC<AdminPlantFormProps> = ({ onCreated }) => 
     <form onSubmit={handleSubmit} className="card-shell, stat-card">
       <h2>Add Plant (Admin)</h2>
 
-      <label>
-        Name*
+    <Row
+      label="Name"
+      value={
         <input
           value={name}
           onChange={(e) => setName(e.target.value)}
           required
+          style={{ width: "100%" }}
         />
-      </label>
+      }
+    />
 
-      <label>
-        Image URL
+    <Row
+      label="Image URL"
+      value={
         <input
           value={image}
           onChange={(e) => setImage(e.target.value)}
           placeholder="https://..."
+          style={{ width: "100%" }}
         />
-      </label>
+      }
+    />
 
-      <label>
-        Max height (same units as garden)
+    <Row
+      label="Max height"
+      sub="Visual height at full maturity"
+      value={
         <input
           type="number"
           value={maxHeight}
           onChange={(e) =>
-            setMaxHeight(e.target.value === "" ? "" : Number(e.target.value))
+            setMaxHeight(
+              e.target.value === "" ? "" : Number(e.target.value)
+            )
           }
+          style={{ width: "100%" }}
         />
-      </label>
+      }
+    />
 
-      <label>
-        Days to maturity / harvest
+    <Row
+      label="Max canopy radius"
+      sub="Used for shading & spacing"
+      value={
+        <input
+          type="number"
+          value={maxCanopyRadius}
+          onChange={(e) =>
+            setMaxCanopyRadius(
+              e.target.value === "" ? "" : Number(e.target.value)
+            )
+          }
+          style={{ width: "100%" }}
+        />
+      }
+    />
+
+    <Row
+      label="Days to maturity / harvest"
+      value={
         <input
           value={daysToHarvest}
           onChange={(e) => setDaysToHarvest(e.target.value)}
-          placeholder="e.g. 60-70"
+          placeholder="e.g. 55 or 60–70"
+          style={{ width: "100%" }}
         />
-      </label>
+      }
+    />
 
-      <div>
-        <strong>Base growth rate (computed): </strong>
-        {baseGrowthRate != null
-          ? `${baseGrowthRate.toFixed(3)} height-units/day`
-          : "— enter max height and days to maturity"}
-      </div>
+    <div style={{ margin: "12px 0" }}>
+      <strong>Base growth rate (computed): </strong>
+      {baseGrowthRate != null
+        ? `${baseGrowthRate.toFixed(3)} height-units/day`
+        : "— enter max height and days to maturity"}
+    </div>
 
-      <hr />
+    <hr />
 
-      <label>
-        Sun requirement (hours/day)
+    <Row
+      label="Sun requirement"
+      sub="Hours of full sun per day"
+      value={
         <input
           type="number"
           value={sunReq}
           onChange={(e) =>
-            setSunReq(e.target.value === "" ? "" : Number(e.target.value))
+            setSunReq(
+              e.target.value === "" ? "" : Number(e.target.value)
+            )
           }
+          style={{ width: "100%" }}
         />
-      </label>
+      }
+    />
 
-      <label>
-        Water Min
+    <Row
+      label="Water Min"
+      sub="Lower bound of ideal soil moisture"
+      value={
         <input
           type="number"
           value={waterMin}
           onChange={(e) =>
-            setWaterMin(e.target.value === "" ? "" : Number(e.target.value))
+            setWaterMin(
+              e.target.value === "" ? "" : Number(e.target.value)
+            )
           }
+          style={{ width: "100%" }}
         />
-      </label>
+      }
+    />
 
-      <label>
-        Water Max
+    <Row
+      label="Water Max"
+      sub="Upper bound of ideal soil moisture"
+      value={
         <input
           type="number"
           value={waterMax}
           onChange={(e) =>
-            setWaterMax(e.target.value === "" ? "" : Number(e.target.value))
+            setWaterMax(
+              e.target.value === "" ? "" : Number(e.target.value)
+            )
           }
+          style={{ width: "100%" }}
         />
-      </label>
+      }
+    />
 
-      <label>
-        Temp Min (°C)
+    <Row
+      label="Temp Min (°C)"
+      value={
         <input
           type="number"
           value={tempMin}
           onChange={(e) =>
-            setTempMin(e.target.value === "" ? "" : Number(e.target.value))
+            setTempMin(
+              e.target.value === "" ? "" : Number(e.target.value)
+            )
           }
+          style={{ width: "100%" }}
         />
-      </label>
+      }
+    />
 
-      <label>
-        Temp Max (°C)
+    <Row
+      label="Temp Max (°C)"
+      value={
         <input
           type="number"
           value={tempMax}
           onChange={(e) =>
-            setTempMax(e.target.value === "" ? "" : Number(e.target.value))
+            setTempMax(
+              e.target.value === "" ? "" : Number(e.target.value)
+            )
           }
+          style={{ width: "100%" }}
         />
-      </label>
+      }
+    />
 
-      <label>
-        Spacing (same units as bed grid)
+    <Row
+      label="Spacing"
+      sub="Same units as your bed grid"
+      value={
         <input
           type="number"
           value={spacing}
           onChange={(e) =>
-            setSpacing(e.target.value === "" ? "" : Number(e.target.value))
+            setSpacing(
+              e.target.value === "" ? "" : Number(e.target.value)
+            )
           }
+          style={{ width: "100%" }}
         />
-      </label>
+      }
+    />
 
-      <label>
-        Comments / notes
+    <Row
+      label="Comments / notes"
+      value={
         <textarea
           value={comments}
           onChange={(e) => setComments(e.target.value)}
+          style={{ width: "100%" }}
         />
-      </label>
+      }
+    />
 
-      {saveError && (
-        <p style={{ color: "red" }}>
-          Error saving plant: {saveError.message}
-        </p>
-      )}
+    {saveError && (
+      <p style={{ color: "red" }}>
+        Error saving plant: {saveError.message}
+      </p>
+    )}
 
-      <button type="submit" disabled={saving}>
-        {saving ? "Saving..." : "Create plant"}
-      </button>
-    </form>
+    <button type="submit" disabled={saving}>
+      {saving ? "Saving..." : "Create plant"}
+    </button>
+  </form>
   );
 };

@@ -3,6 +3,7 @@ import React, { useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { dragConfigFrom } from "../utils/dragConfig";
 import { useDragComponent } from "../hooks/useDragComponent";
+import { Row } from "./common/Row";
 
 type SunData = {
   solarElevation: number;   // deg
@@ -290,25 +291,6 @@ function SunStatsCard({
             )}m`}
           />
         </div>
-      </div>
-    </div>
-  );
-}
-
-function Row({
-  label,
-  value,
-  unit,
-}: {
-  label: string;
-  value: string | number;
-  unit?: string;
-}) {
-  return (
-    <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between" }}>
-      <div style={{ color: "#4b5563" }}>{label}</div>
-      <div style={{ fontWeight: 600 }}>
-        {value} {unit ?? ""}
       </div>
     </div>
   );

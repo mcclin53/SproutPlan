@@ -7,6 +7,7 @@ import { dragConfigFrom } from "../utils/dragConfig";
 import type { DeathInfo } from "../hooks/useDeath";
 import { DeathReason } from "../hooks/useDeath";
 import { resolvePlantImageSrc, handleImageError } from "../utils/plantImage";
+import { Row } from "./common/Row";
 
 const BASE_URL = (import.meta.env.VITE_API_URL as string) || "http://localhost:3001";
 
@@ -318,30 +319,6 @@ export default function PlantStats(props: Props) {
             </div>
           </div>
         </div>
-      </div>
-    </div>
-  );
-}
-
-function Row({
-  label,
-  value,
-  unit,
-  sub,
-}: {
-  label: string;
-  value: string | number | undefined | null;
-  unit?: string;
-  sub?: string;
-}) {
-  return (
-    <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between" }}>
-      <div style={{ color: "#4b5563" }}>{label}</div>
-      <div style={{ textAlign: "right" }}>
-        <div style={{ fontWeight: 600 }}>
-          {value != null && value !== "" ? value : "—"} {unit ?? ""}
-        </div>
-        {sub ? <div style={{ fontSize: 12, color: "#6b7280" }}>{sub}</div> : null}
       </div>
     </div>
   );
