@@ -61,6 +61,16 @@ export const GET_BEDS = gql`
           baseGrowthRate
           maxHeight
           maxCanopyRadius
+          tempMin
+          tempMax
+          waterMin
+          waterMax
+          sunGraceDays
+          graceHours {
+          cold
+          heat
+          dry
+          wet}
         }
       }
     }

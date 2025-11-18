@@ -70,10 +70,10 @@ const typeDefs = gql`
   }
 
   type GraceHours {
-    cold: Int!
-    heat: Int!
-    dry: Int!
-    wet: Int!
+    cold: Int
+    heat: Int
+    dry: Int
+    wet: Int
   }
 
   type Plant {

@@ -3,6 +3,7 @@ import useDragPlant from "../hooks/useDragPlant";
 import { useGrowPlant } from "../hooks/useGrowPlant";
 import { useDeath, DeathReason } from "../hooks/useDeath";
 import { resolvePlantImageSrc, handleImageError } from "../utils/plantImage";
+import type { StressOverrides } from "../utils/types";
 
 type GraceHours = {
   cold?: number;
@@ -10,7 +11,6 @@ type GraceHours = {
   dry?: number;
   wet?: number;
 };
-
 
 interface BasePlant {
   _id: string;
@@ -62,6 +62,7 @@ interface Props {
   isDead?: boolean;
   deathReason?: string;
 }) => void;
+  debugOverrides?: StressOverrides;
 }
 
 const BASE_URL = (import.meta.env.VITE_API_URL as string) || "http://localhost:3001";
@@ -81,6 +82,7 @@ export default function PlantInstanceComponent({
   hourlyTempsC,
   onPlantClick,
   onLiveStats,
+  debugOverrides
 }: Props) {
   const bp = plantInstance.basePlant;
 
@@ -125,50 +127,22 @@ export default function PlantInstanceComponent({
     [plantInstance._id, bedId]
   );
 
-  const hourlyTempC = useMemo(
-    () =>
-      hourlyTempsC && hourlyTempsC.length >= 24
-        ? hourlyTempsC
-        : dayWeather
-        ? new Array(24).fill(dayWeather.tMeanC) // fallback so tempOkHours can still advance
-        : undefined,
-    [hourlyTempsC, dayWeather]
-  );
+  const hourlyTempC = useMemo(() => {
+  if (debugOverrides?.enabled && typeof debugOverrides.tempC === "number") {
+    // Admin override: force same temp all day
+    return new Array(24).fill(debugOverrides.tempC);
+  }
 
-  const death = useDeath(
-    {
-      _id: plantInstance._id,
-      name: plantInstance.basePlant.name,
-      tempMin: plantInstance.basePlant.tempMin ?? null,
-      tempMax: plantInstance.basePlant.tempMax ?? null,
-      waterMin: plantInstance.basePlant.waterMin ?? null,
-      waterMax: plantInstance.basePlant.waterMax ?? null,
-      sunReq: null, // disable sun-based death for now
-    },
-    {
-      simulatedDate: simulatedDate ?? new Date(),
-      hourlyTempsC: hourlyTempC ?? null,
-      dailyMeanTempC: dayWeather?.tMeanC ?? null,
-      soilMoistureMm: soil?.moistureMm ?? null,
-      soilCapacityMm: null,
-      waterMinMaxMm: {
-        min: plantInstance.basePlant.waterMin ?? null,
-        max: plantInstance.basePlant.waterMax ?? null,
-      },
-      sunTodayHours: null,
-      sunMinHours: null,
-    },
-    {
-      graceHours: {
-        cold: plantInstance.basePlant.graceHours?.cold ?? 0,
-        heat: plantInstance.basePlant.graceHours?.heat ?? 1,
-        dry: plantInstance.basePlant.graceHours?.dry ?? 12,
-        wet: plantInstance.basePlant.graceHours?.wet ?? 12,
-      },
-      sunDailyGraceDays: plantInstance.basePlant.sunGraceDays ?? 2,
-      onDeath: (info) => console.log("[Death]", plantInstance.basePlant.name, info),
-    }
-  );
+  if (hourlyTempsC && hourlyTempsC.length >= 24) {
+    return hourlyTempsC;
+  }
+
+  if (dayWeather) {
+    return new Array(24).fill(dayWeather.tMeanC);
+  }
+
+  return undefined;
+}, [debugOverrides?.enabled, debugOverrides?.tempC, hourlyTempsC, dayWeather]);
 
   const { grownPlants, sunlightHours, tempOkHours } = useGrowPlant(plantsForGrowth, {
     simulatedDate: simulatedDate ?? new Date(),
@@ -176,7 +150,6 @@ export default function PlantInstanceComponent({
     shadedIds,
     resetDaily: true,
     simulateMidnight: true,
-    persist: !death.dead,
     bedIdByPlant,
     modelVersion: "growth-v2-size-per-day",
     buildInputsForPlant: (p) => ({ 
@@ -195,6 +168,44 @@ export default function PlantInstanceComponent({
   const grown = grownPlants[0];
   const hoursToday = sunlightHours[plantInstance._id] ?? 0;
   const tempOk = tempOkHours?.[plantInstance._id] ?? 0;
+
+  const death = useDeath(
+    {
+      _id: plantInstance._id,
+      name: plantInstance.basePlant.name,
+      tempMin: plantInstance.basePlant.tempMin ?? null,
+      tempMax: plantInstance.basePlant.tempMax ?? null,
+      waterMin: plantInstance.basePlant.waterMin ?? null,
+      waterMax: plantInstance.basePlant.waterMax ?? null,
+      sunReq: plantInstance.basePlant.sunReq ?? null,
+    },
+    {
+      simulatedDate: simulatedDate ?? new Date(),
+      hourlyTempsC: hourlyTempC ?? null,
+      dailyMeanTempC: dayWeather?.tMeanC ?? null,
+      soilMoistureMm:
+        debugOverrides?.enabled && typeof debugOverrides.soilMoisture === "number"
+      ? debugOverrides.soilMoisture
+      : soil?.moistureMm ?? null,
+      soilCapacityMm: null,
+      waterMinMaxMm: {
+        min: plantInstance.basePlant.waterMin ?? null,
+        max: plantInstance.basePlant.waterMax ?? null,
+      },
+      sunTodayHours: hoursToday,
+      sunMinHours: plantInstance.basePlant.sunReq ?? null,
+    },
+    {
+      graceHours: {
+        cold: plantInstance.basePlant.graceHours?.cold ?? 0,
+        heat: plantInstance.basePlant.graceHours?.heat ?? 1,
+        dry: plantInstance.basePlant.graceHours?.dry ?? 12,
+        wet: plantInstance.basePlant.graceHours?.wet ?? 12,
+      },
+      sunDailyGraceDays: plantInstance.basePlant.sunGraceDays ?? 2,
+      onDeath: (info) => console.log("[Death]", plantInstance.basePlant.name, info),
+    }
+  );
 
   React.useEffect(() => {
     onLiveStats?.({
@@ -289,6 +300,31 @@ export default function PlantInstanceComponent({
           }}
         >
           ☠️
+        </div>
+      )}
+      {process.env.NODE_ENV === "development" && (
+        <div
+          style={{
+            position: "absolute",
+            bottom: -18,
+            left: 0,
+            display: "flex",
+            gap: 4,
+            fontSize: 9,
+          }}
+        >
+              <button
+            type="button"
+            onClick={() => death.killNow(DeathReason.TooCold)}
+          >
+            Kill cold
+          </button>
+          <button
+            type="button"
+            onClick={() => death.killNow(DeathReason.TooDry)}
+          >
+            Kill dry
+          </button>
         </div>
       )}
       <button

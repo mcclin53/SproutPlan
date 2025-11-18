@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
-export enum DeathReason {
-  TooCold = "too_cold",
-  TooHot = "too_hot",
-  TooDry = "too_dry",
-  TooWet = "too_wet",
-  NotEnoughSun = "not_enough_sun",
-}
+export const DeathReason = {
+  TooCold: "too_cold",
+  TooHot: "too_hot",
+  TooDry: "too_dry",
+  TooWet: "too_wet",
+  NotEnoughSun: "not_enough_sun",
+} as const;
+
+export type DeathReason = (typeof DeathReason)[keyof typeof DeathReason];
 
 export type DeathInfo = {
   dead: boolean;
@@ -128,7 +130,7 @@ export function useDeath(
     declareDeath(reason, { ...extraDetails, debugKill: true });
   };
 
-  // ---- Hourly checks: TEMP + WATER -------------------------------
+  // hourly checks for temp and water
   useEffect(() => {
     if (state.dead) return;
 
@@ -142,6 +144,17 @@ export function useDeath(
     } else if (opts.treatDailyMeanAsHourly && typeof dailyMeanTempC === "number") {
       tempNow = dailyMeanTempC;
     }
+
+    console.log("[Death debug: temp]", {
+      plantId: plant._id,
+      name: plant.name,
+      hour,
+      tempNow,
+      effTempMin,
+      effTempMax,
+      coldHours: coldH.current,
+      coldGrace: grace.cold,
+    });
 
     if (tempNow != null) {
       if (typeof effTempMin === "number") {
@@ -170,6 +183,17 @@ export function useDeath(
       if (typeof effWaterMin === "number") {
         if (soilMoistureMm < effWaterMin) dryH.current += 1;
         else dryH.current = 0;
+
+        console.log("[Death debug: water]", {
+          plantId: plant._id,
+          name: plant.name,
+          soilMoistureMm,
+          effWaterMin,
+          effWaterMax,
+          dryHours: dryH.current,
+          dryGrace: grace.dry,
+        });
+
         if (dryH.current > grace.dry) {
           return declareDeath(DeathReason.TooDry, {
             soilMoistureMm, minMm: effWaterMin, hours: dryH.current,

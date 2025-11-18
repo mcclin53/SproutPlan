@@ -6,7 +6,7 @@ import useDragPlant from "../hooks/useDragPlant";
 import PlantInstanceComponent from "./PlantInstance";
 import { MOVE_PLANT_IN_BED } from "../utils/mutations";
 import { motion } from "framer-motion";
-import type { DayWeather } from "../utils/types";
+import type { DayWeather, StressOverrides } from "../utils/types";
 
 interface BedProps {
   bed: {
@@ -33,6 +33,7 @@ interface BedProps {
   onPlantClick?: (payload: { plantInstance: any; bedId: string }) => void;
   onLiveStats?: (payload: { plantId: string; height?: number; canopy?: number; sunHours?: number; tempOkHours?: number }) => void;
   onOpenStats?: (bedId: string) => void;
+  debugOverrides?: StressOverrides;
 
 }
 
@@ -50,7 +51,25 @@ function mergeRefs<T>(...refs: Array<React.Ref<T> | undefined>) {
   };
 }
 
-export default function Bed({ bed, onAddBasePlantsToBed, onRemoveBed, moveBed, movePlantInBed, getPlantCoordinates, handleRemovePlant, sunDirection, simulatedDate, shadedIds, dayWeather, soil, hourlyTempsC, onPlantClick, onLiveStats, onOpenStats}: BedProps) {
+export default function Bed({ 
+  bed, 
+  onAddBasePlantsToBed, 
+  onRemoveBed, 
+  moveBed, 
+  movePlantInBed, 
+  getPlantCoordinates, 
+  handleRemovePlant, 
+  sunDirection, 
+  simulatedDate, 
+  shadedIds, 
+  dayWeather, 
+  soil, 
+  hourlyTempsC, 
+  onPlantClick, 
+  onLiveStats, 
+  onOpenStats, 
+  debugOverrides
+}: BedProps) {
   const dropRef = useRef<HTMLDivElement>(null)
   const [movePlantInBedMutation] = useMutation(MOVE_PLANT_IN_BED);
 
@@ -128,6 +147,7 @@ const [, drop] = useDrop(() => ({
             hourlyTempsC={hourlyTempsC}
             onPlantClick={onPlantClick}
             onLiveStats={onLiveStats}
+            debugOverrides={debugOverrides}
           />
         ))
       ) : (

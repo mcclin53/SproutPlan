@@ -23,6 +23,9 @@ import { useWater } from "../hooks/useWater";
 import PlantStats from "./PlantStats";
 // import { guessRootDepthM } from "../utils/waterBand";
 import BedStats from "./BedStats";
+import type { StressOverrides } from "../utils/types";
+import { QUERY_ME } from "../utils/queries";
+import { AdminStressPanel } from "./AdminControlPanel";
 
   // Traverse City, MI (example coords)
   const GARDEN_LAT = 44.7629;
@@ -37,6 +40,17 @@ export default function Garden() {
   
   const [selected, setSelected] = useState<{ plant: any; bedId: string } | null>(null);
   const [selectedBedId, setSelectedBedId] = useState<string | null>(null);
+
+  const [stressOverrides, setStressOverrides] = useState<StressOverrides>({
+    enabled: false,
+    tempC: null,
+    soilMoisture: null,
+  });
+
+  const { data: meData } = useQuery(QUERY_ME);
+  const me = meData?.me || meData?.profile || null;
+  const isAdmin = me?.role === "admin";
+
 
   const { day: dayWeather, hourly } = useWeather(GARDEN_LAT, GARDEN_LON, localSimulatedDate);
 
@@ -259,7 +273,13 @@ export default function Garden() {
         <Weather 
           lat={GARDEN_LAT} lon={GARDEN_LON} 
           simDate={localSimulatedDate} 
-          onIrrigate={(mm) => irrigate(mm)} />
+          onIrrigate={(mm) => irrigate(mm)}
+        />
+        <AdminStressPanel
+          overrides={stressOverrides}
+          onChange={setStressOverrides}
+          isAdmin={isAdmin}
+        />
         </div>
 
         {/* Garden beds */}
@@ -275,6 +295,7 @@ export default function Garden() {
               dayWeather={dayWeather}
               soil={soil}
               hourlyTempsC={hourly?.tempC}
+              debugOverrides={stressOverrides}
               onOpenStats={(id) => setSelectedBedId(id)}
               onAddBasePlantsToBed={(bedId, basePlantIds, positions) => {
                 addPlantsToBed(bedId, basePlantIds, positions, (updatedBed) => {

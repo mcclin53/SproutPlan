@@ -70,7 +70,23 @@ const resolvers: IResolvers = {
     beds: async () => {
       const beds = await Bed.find().populate({
         path: "plants.basePlant",
-        select: "_id name image waterReq spacing sunReq baseGrowthRate maxHeight maxCanopyRadius",
+        select: `
+          _id
+          name
+          image
+          waterReq
+          spacing
+          sunReq
+          baseGrowthRate
+          maxHeight
+          maxCanopyRadius
+          tempMin
+          tempMax
+          waterMin
+          waterMax
+          sunGraceDays
+          graceHours
+        `,
       });
 
       return beds.map(bed => ({

@@ -13,3 +13,9 @@ export type HourlyWeather = {
   precipMm: number[];  // mm
   et0Mm?: number[] | null; // optional/nullable on climo
 };
+
+export type StressOverrides = {
+  enabled: boolean;
+  tempC?: number | null;
+  soilMoisture?: number | null; // same scale as the soil model (0–1 or mm)
+};
