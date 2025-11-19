@@ -6,6 +6,7 @@ export const DeathReason = {
   TooDry: "too_dry",
   TooWet: "too_wet",
   NotEnoughSun: "not_enough_sun",
+  OldAge: "old_age"
 } as const;
 
 export type DeathReason = (typeof DeathReason)[keyof typeof DeathReason];
@@ -43,6 +44,10 @@ type Inputs = {
   // SUN (useGrowPlant)
   sunTodayHours?: number | null;     // sunlightHours[plantId] for the current local day
   sunMinHours?: number | null;       // usually plant.sunReq
+
+
+  plantedAt?: Date | string | null;   // when this instance was planted
+    lifespanDays?: number | null;       // max age before old-age death
 };
 
 type Options = {
@@ -72,6 +77,8 @@ export function useDeath(
     waterMinMaxMm,
     sunTodayHours,
     sunMinHours,
+    plantedAt,
+    lifespanDays,
   } = inputs;
 
   const [state, setState] = useState<DeathInfo>({
@@ -129,6 +136,36 @@ export function useDeath(
   ) => {
     declareDeath(reason, { ...extraDetails, debugKill: true });
   };
+
+  useEffect(() => {
+    if (state.dead) return;
+    if (!plantedAt) return;
+    if (typeof lifespanDays !== "number" || lifespanDays <= 0) return;
+
+    const plantedDate =
+      plantedAt instanceof Date ? plantedAt : new Date(plantedAt);
+    if (Number.isNaN(plantedDate.getTime())) return;
+
+    const MS_PER_DAY = 24 * 60 * 60 * 1000;
+    const ageMs = simulatedDate.getTime() - plantedDate.getTime();
+    const ageDays = ageMs / MS_PER_DAY;
+
+    // die of old age once age passes lifespanDays
+    if (ageDays > lifespanDays) {
+      return declareDeath(DeathReason.OldAge, {
+        ageDays,
+        lifespanDays,
+        plantId: plant._id,
+        name: plant.name,
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    simulatedDate.getTime(),
+    plantedAt,
+    lifespanDays,
+    state.dead,
+  ]);
 
   // hourly checks for temp and water
   useEffect(() => {

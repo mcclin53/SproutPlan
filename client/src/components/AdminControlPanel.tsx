@@ -67,7 +67,7 @@ export function AdminStressPanel({
 
       <Row
         label="Dryness override"
-        sub="Soil moisture (0–1 or mm)"
+        sub="Soil moisture (mm)"
         value={
           <input
             type="number"

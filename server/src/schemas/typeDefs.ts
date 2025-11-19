@@ -259,6 +259,7 @@ const typeDefs = gql`
     clearUserLocation: Profile!
     updatePlantStress(input: UpdatePlantStressInput!): Plant!
     createPlant(input: PlantInput!): Plant!
+    deletePlant(id: ID!): Boolean!
   }
 `;
 

@@ -26,6 +26,7 @@ import BedStats from "./BedStats";
 import type { StressOverrides } from "../utils/types";
 import { QUERY_ME } from "../utils/queries";
 import { AdminStressPanel } from "./AdminControlPanel";
+import { AdminPlantList } from "./AdminPlantList";
 
   // Traverse City, MI (example coords)
   const GARDEN_LAT = 44.7629;
@@ -280,6 +281,7 @@ export default function Garden() {
           onChange={setStressOverrides}
           isAdmin={isAdmin}
         />
+        <AdminPlantList />
         </div>
 
         {/* Garden beds */}

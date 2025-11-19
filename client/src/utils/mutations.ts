@@ -255,3 +255,9 @@ export const CREATE_PLANT = gql`
     }
   }
 `;
+
+export const DELETE_PLANT = gql`
+  mutation DeletePlant($id: ID!) {
+    deletePlant(id: $id)
+  }
+`;

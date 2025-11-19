@@ -12,6 +12,8 @@ type GraceHours = {
   wet?: number;
 };
 
+type GrowthPhase = "seed" | "vegetative" | "flowering" | "fruiting" | "dead";
+
 interface BasePlant {
   _id: string;
   name: string;
@@ -28,6 +30,10 @@ interface BasePlant {
   waterMax?: number;
   graceHours?: GraceHours;
   sunGraceDays?: number;
+  germinationDays?: number;
+  floweringDays?: number;
+  fruitingDays?: number;
+  lifespanDays?: number;
 }
 
 interface PlantInstance {
@@ -37,6 +43,8 @@ interface PlantInstance {
   y: number;
   height?: number;
   canopyRadius?: number;
+  plantedAt: string | Date;
+  phase?: GrowthPhase;
 }
 
 interface Props {
@@ -194,6 +202,8 @@ export default function PlantInstanceComponent({
       },
       sunTodayHours: hoursToday,
       sunMinHours: plantInstance.basePlant.sunReq ?? null,
+      plantedAt: plantInstance.plantedAt,
+      lifespanDays: plantInstance.basePlant.lifespanDays,
     },
     {
       graceHours: {
@@ -261,7 +271,7 @@ export default function PlantInstanceComponent({
       <img
         src={resolvePlantImageSrc(bp.image)}
         alt={plantInstance.basePlant.name}
-        title="Click for Plant Stats"
+        title={ `"Click for Plant Stats" || "Died because ${death.reason}"`}
         style={{
           width: 40,
           height: 40,
@@ -313,7 +323,7 @@ export default function PlantInstanceComponent({
             fontSize: 9,
           }}
         >
-              <button
+              {/* <button
             type="button"
             onClick={() => death.killNow(DeathReason.TooCold)}
           >
@@ -324,7 +334,7 @@ export default function PlantInstanceComponent({
             onClick={() => death.killNow(DeathReason.TooDry)}
           >
             Kill dry
-          </button>
+          </button> */}
         </div>
       )}
       <button

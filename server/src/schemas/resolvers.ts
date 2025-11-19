@@ -582,6 +582,33 @@ const resolvers: IResolvers = {
       return plant;
     },
 
+    deletePlant: async (
+      _: unknown,
+      { id }: { id: string },
+      context: { user?: { _id: string } | null }
+    ) => {
+      const { user } = context;
+
+      if (!user?._id) {
+        throw new AuthenticationError("Not authenticated");
+      }
+
+      const profile = await Profile.findById(user._id);
+  if (!profile || profile.role !== "admin") {
+    throw new ForbiddenError("Only admins can delete plants");
+  }
+
+  const inUse = await Bed.exists({ "plants.basePlant": id });
+  if (inUse) {
+    throw new Error(
+      "Cannot delete plant: it is still used in one or more beds. Remove those plant instances first."
+    );
+  }
+
+  const deleted = await Plant.findByIdAndDelete(id);
+  return !!deleted;
+},
+
     applyMidnightGrowth: async (
         _,
         {
