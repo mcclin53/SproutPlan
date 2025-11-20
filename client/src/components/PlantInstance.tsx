@@ -114,6 +114,12 @@ export default function PlantInstanceComponent({
         tempMax: base.tempMax ?? 35,
         waterMin: base.waterMin ?? 10,
         waterMax: base.waterMax ?? 50,
+        plantedAt: plantInstance.plantedAt,
+        germinationDays: base.germinationDays,
+        floweringDays: base.floweringDays,
+        fruitingDays: base.fruitingDays,
+        lifespanDays: base.lifespanDays,
+        phase: plantInstance.phase,
       };
     }, [
       plantInstance._id,
@@ -122,6 +128,12 @@ export default function PlantInstanceComponent({
       plantInstance.basePlant.baseGrowthRate,
       plantInstance.height,
       plantInstance.canopyRadius,
+      plantInstance.plantedAt,
+      plantInstance.basePlant.germinationDays,
+      plantInstance.basePlant.floweringDays,
+      plantInstance.basePlant.fruitingDays,
+      plantInstance.basePlant.lifespanDays,
+      plantInstance.phase,
     ]);
 
   const plantsForGrowth = useMemo(() => [plantForGrowth], [plantForGrowth]);
@@ -152,6 +164,49 @@ export default function PlantInstanceComponent({
   return undefined;
 }, [debugOverrides?.enabled, debugOverrides?.tempC, hourlyTempsC, dayWeather]);
 
+  const [yesterdaySunHours, setYesterdaySunHours] = useState<Record<string, number>>({});
+  const yesterdayHours = yesterdaySunHours[plantInstance._id] ?? 0;
+
+  const death = useDeath(
+      {
+        _id: plantInstance._id,
+        name: plantInstance.basePlant.name,
+        tempMin: plantInstance.basePlant.tempMin ?? null,
+        tempMax: plantInstance.basePlant.tempMax ?? null,
+        waterMin: plantInstance.basePlant.waterMin ?? null,
+        waterMax: plantInstance.basePlant.waterMax ?? null,
+        sunReq: plantInstance.basePlant.sunReq ?? null,
+      },
+      {
+        simulatedDate: simulatedDate ?? new Date(),
+        hourlyTempsC: hourlyTempC ?? null,
+        dailyMeanTempC: dayWeather?.tMeanC ?? null,
+        soilMoistureMm:
+          debugOverrides?.enabled && typeof debugOverrides.soilMoisture === "number"
+        ? debugOverrides.soilMoisture
+        : soil?.moistureMm ?? null,
+        soilCapacityMm: null,
+        waterMinMaxMm: {
+          min: plantInstance.basePlant.waterMin ?? null,
+          max: plantInstance.basePlant.waterMax ?? null,
+        },
+        sunTodayHours: yesterdayHours,
+        sunMinHours: plantInstance.basePlant.sunReq ?? null,
+        plantedAt: plantInstance.plantedAt,
+        lifespanDays: plantInstance.basePlant.lifespanDays,
+      },
+      {
+        graceHours: {
+          cold: plantInstance.basePlant.graceHours?.cold ?? 0,
+          heat: plantInstance.basePlant.graceHours?.heat ?? 1,
+          dry: plantInstance.basePlant.graceHours?.dry ?? 12,
+          wet: plantInstance.basePlant.graceHours?.wet ?? 12,
+        },
+        sunDailyGraceDays: plantInstance.basePlant.sunGraceDays ?? 2,
+        onDeath: (info) => console.log("[Death]", plantInstance.basePlant.name, info),
+      }
+    );
+
   const { grownPlants, sunlightHours, tempOkHours } = useGrowPlant(plantsForGrowth, {
     simulatedDate: simulatedDate ?? new Date(),
     sun,
@@ -169,53 +224,17 @@ export default function PlantInstanceComponent({
       precipMm: dayWeather?.precipMm ?? null,
       et0Mm: dayWeather?.et0Mm ?? null,
       soilMoistureMm: soil?.moistureMm ?? null,
-     }),
-     hourlyTempC,
+    }),
+    hourlyTempC,
+    deadIds: death.dead ? [plantInstance._id] : [],
+    onDaylightSummary: (summary) => {
+    setYesterdaySunHours(summary);
+    },
   });
 
   const grown = grownPlants[0];
   const hoursToday = sunlightHours[plantInstance._id] ?? 0;
   const tempOk = tempOkHours?.[plantInstance._id] ?? 0;
-
-  const death = useDeath(
-    {
-      _id: plantInstance._id,
-      name: plantInstance.basePlant.name,
-      tempMin: plantInstance.basePlant.tempMin ?? null,
-      tempMax: plantInstance.basePlant.tempMax ?? null,
-      waterMin: plantInstance.basePlant.waterMin ?? null,
-      waterMax: plantInstance.basePlant.waterMax ?? null,
-      sunReq: plantInstance.basePlant.sunReq ?? null,
-    },
-    {
-      simulatedDate: simulatedDate ?? new Date(),
-      hourlyTempsC: hourlyTempC ?? null,
-      dailyMeanTempC: dayWeather?.tMeanC ?? null,
-      soilMoistureMm:
-        debugOverrides?.enabled && typeof debugOverrides.soilMoisture === "number"
-      ? debugOverrides.soilMoisture
-      : soil?.moistureMm ?? null,
-      soilCapacityMm: null,
-      waterMinMaxMm: {
-        min: plantInstance.basePlant.waterMin ?? null,
-        max: plantInstance.basePlant.waterMax ?? null,
-      },
-      sunTodayHours: hoursToday,
-      sunMinHours: plantInstance.basePlant.sunReq ?? null,
-      plantedAt: plantInstance.plantedAt,
-      lifespanDays: plantInstance.basePlant.lifespanDays,
-    },
-    {
-      graceHours: {
-        cold: plantInstance.basePlant.graceHours?.cold ?? 0,
-        heat: plantInstance.basePlant.graceHours?.heat ?? 1,
-        dry: plantInstance.basePlant.graceHours?.dry ?? 12,
-        wet: plantInstance.basePlant.graceHours?.wet ?? 12,
-      },
-      sunDailyGraceDays: plantInstance.basePlant.sunGraceDays ?? 2,
-      onDeath: (info) => console.log("[Death]", plantInstance.basePlant.name, info),
-    }
-  );
 
   React.useEffect(() => {
     onLiveStats?.({

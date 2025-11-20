@@ -1,6 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { useMutation } from "@apollo/client";
 import { APPLY_MIDNIGHT_GROWTH } from "../utils/mutations";
+import { computePhase } from "../utils/growthPhases";
+import { useDeath, DeathReason } from "./useDeath";
+
+type GrowthPhase = "seed" | "vegetative" | "flowering" | "fruiting" | "dead";
 
 interface Plant {
   _id: string;
@@ -13,6 +17,12 @@ interface Plant {
   waterMax?: number;
   tempMin?: number;
   tempMax?: number;
+  plantedAt?: Date | string;
+  germinationDays?: number;
+  floweringDays?: number;
+  fruitingDays?: number;
+  lifespanDays?: number;
+  phase?: GrowthPhase;
 }
 
 interface SunPosition {
@@ -33,6 +43,8 @@ interface GrowOptions {
   onAppliedOne?: (plantId: string, newHeight: number, newCanopy: number) => void;
   soilMoistureByBed?: Record<string, number>;
   hourlyTempC?: number[];
+  deadIds?: string[];
+  onDaylightSummary?: (summary: Record<string, number>) => void;
 }
 
 function clamp01(x: number) {
@@ -100,20 +112,21 @@ export function useGrowPlant(
     const now = simulatedDate.getTime();
     const day = simulatedDate.toDateString();
 
-    // First run: initialize
+    const deadSet = new Set(options.deadIds ?? []);
+
+    // initialize
     if (currentDayRef.current == null) {
       currentDayRef.current = day;
       lastTickRef.current = now;
       return;
     }
 
-    // --------------------------------------------------
-    // 1) Detect calendar day change
-    // --------------------------------------------------
+    // Detect calendar day change
     if (day !== currentDayRef.current) {
       const prevDayKey = currentDayRef.current;
       const snapshotSunHours = { ...sunlightRef.current };
       const snapshotTempOk = { ...tempOkRef.current };
+      options.onDaylightSummary?.(snapshotSunHours);
 
       console.log(
         "%c[DayChange]",
@@ -131,11 +144,23 @@ export function useGrowPlant(
       currentDayRef.current = day;
       lastTickRef.current = now;
 
-      // 1a) Handle “midnight growth” for the *previous* day
+      const prevDayDate = new Date(
+        new Date(simulatedDate).getTime() - 24 * 60 * 60 * 1000
+      );
+
+      // Handle “midnight growth” for the *previous* day
       if (simulateMidnight) {
         if (!persist) {
           // Local-only growth
           const updated = plants.map(plant => {
+
+            if (deadSet.has(plant._id)) {
+              const prev = prevGrownRef.current.find(x => x._id === plant._id) ?? plant;
+              console.log("[Midnight:local] Skipping growth for dead plant", plant.name);
+              onAppliedOne?.(plant._id, prev.height, prev.canopyRadius);
+              return prev;
+            }
+
             const hours = snapshotSunHours[plant._id] ?? 0;
             const sunReq = plant.sunReq || 0;
             const sunEff = sunReq > 0 ? Math.min(1, hours / sunReq) : 0;
@@ -151,6 +176,33 @@ export function useGrowPlant(
               options.soilMoistureByBed
             );
 
+            let phase: GrowthPhase = "vegetative";
+            const plantedAt = plant.plantedAt;
+            if (plantedAt) {
+              const plantedDate =
+                plantedAt instanceof Date ? plantedAt : new Date(plantedAt);
+              const { phase: ph } = computePhase(plantedDate, prevDayDate, {
+                germinationDays: plant.germinationDays,
+                floweringDays: plant.floweringDays,
+                fruitingDays: plant.fruitingDays,
+                lifespanDays: plant.lifespanDays,
+              });
+              phase = ph;
+            }
+
+            // If seed or dead, no size growth
+            if (phase === "seed" || phase === "dead") {
+              console.log("[Midnight:local] No growth due to phase", plant.name, phase);
+              const prev = prevGrownRef.current.find(x => x._id === plant._id) ?? plant;
+              onAppliedOne?.(plant._id, prev.height, prev.canopyRadius);
+              return { ...prev, phase };
+            }
+
+            // tweak growth by phase
+            let phaseMultiplier = 1;
+            if (phase === "flowering") phaseMultiplier = 0.8;
+            if (phase === "fruiting") phaseMultiplier = 0.5;
+
             const baseRate = plant.baseGrowthRate || 0;
             const overallEff = sunEff * waterEff * tempEff;
             const dH = baseRate * overallEff;
@@ -161,6 +213,7 @@ export function useGrowPlant(
             const newC = (prev.canopyRadius ?? 0) + dC;
 
             console.log("[Midnight:local]", plant.name, {
+              phase,
               sunEff: sunEff.toFixed(2),
               tempEff: tempEff.toFixed(2),
               waterEff: waterEff.toFixed(2),
@@ -170,19 +223,16 @@ export function useGrowPlant(
 
             onAppliedOne?.(plant._id, newH, newC);
 
-            return { ...plant, height: newH, canopyRadius: newC };
+            return { ...plant, height: newH, canopyRadius: newC, phase };
           });
 
           setGrownPlants(updated);
           prevGrownRef.current = updated;
         } else {
-          // Persisted path (server)
+          // Persisted path
           (async () => {
             try {
-              // Use PREVIOUS day as the date we’re applying for
-              const prevDayDate = new Date(
-                new Date(simulatedDate).getTime() - 24 * 60 * 60 * 1000
-              );
+              
               const dayISO = new Date(
                 prevDayDate.setHours(0, 0, 0, 0)
               ).toISOString();
@@ -190,6 +240,11 @@ export function useGrowPlant(
               const results: { id: string; height: number; canopy: number }[] = [];
 
               for (const plant of plants) {
+
+                if (deadSet.has(plant._id)) {
+                  console.log("[applyMidnightGrowth] Skipping dead plant", plant.name);
+                  continue;
+                }
                 const bedId = bedIdByPlant[plant._id];
                 if (!bedId) {
                   console.warn(
@@ -200,6 +255,21 @@ export function useGrowPlant(
 
                 const hours = snapshotSunHours[plant._id] ?? 0;
                 const hoursTempOk = snapshotTempOk[plant._id] ?? 0;
+
+                let phase: GrowthPhase | undefined;
+                if (plant.plantedAt) {
+                  const plantedDate =
+                    plant.plantedAt instanceof Date
+                      ? plant.plantedAt
+                      : new Date(plant.plantedAt);
+                  const { phase: ph } = computePhase(plantedDate, prevDayDate, {
+                    germinationDays: plant.germinationDays,
+                    floweringDays: plant.floweringDays,
+                    fruitingDays: plant.fruitingDays,
+                    lifespanDays: plant.lifespanDays,
+                  });
+                  phase = ph;
+                }
 
                 const variables = {
                   bedId,
@@ -239,7 +309,7 @@ export function useGrowPlant(
         }
       }
 
-      // 1b) ALWAYS reset tallies after a day change (if resetDaily)
+      // reset tallies after a day change (if resetDaily)
       if (resetDaily) {
         console.log("[DayChange] Resetting sunlight & tempOk hours");
         setSunlightHours({});
@@ -248,13 +318,10 @@ export function useGrowPlant(
         tempOkRef.current = {};
       }
 
-      // Don’t accumulate sun/temp on this same tick — start fresh next render
       return;
     }
 
-    // --------------------------------------------------
-    // 2) Same calendar day → accumulate sun & temp
-    // --------------------------------------------------
+    // Same calendar day → accumulate sun & temp
     const deltaHours = (now - lastTickRef.current) / (1000 * 60 * 60);
     if (deltaHours <= 0) return;
     lastTickRef.current = now;
@@ -267,6 +334,7 @@ export function useGrowPlant(
     setSunlightHours(prev => {
       const next = { ...prev };
       for (const p of plants) {
+        if (deadSet.has(p._id)) continue;
         if (shadedSet.has(p._id)) continue; // shaded → no sun
         next[p._id] = (next[p._id] ?? 0) + deltaHours;
         console.log(
@@ -285,6 +353,8 @@ export function useGrowPlant(
       setTempOkHours(prev => {
         const next = { ...prev };
         for (const p of plants) {
+          if (deadSet.has(p._id)) continue;
+
           const tmin = p.tempMin ?? -Infinity;
           const tmax = p.tempMax ?? Infinity;
           const ok = tempNow >= tmin && tempNow <= tmax;

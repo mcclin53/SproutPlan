@@ -14,6 +14,7 @@ type Flags = {
   backfillAll?: boolean;
   profilesRole?: boolean;
   plantsStressDefaults?: boolean;
+  plantsPhaseDefaults?: boolean;
   promoteAdminEmail?: string | null;
   dryRun?: boolean;
 };
@@ -25,6 +26,7 @@ function parseFlags(argv: string[]): Flags {
     if (a === "--backfill-all") f.backfillAll = true;
     else if (a === "--profiles-role") f.profilesRole = true;
     else if (a === "--plants-stress-defaults") f.plantsStressDefaults = true;
+    else if (a === "--plants-phase-defaults") f.plantsPhaseDefaults = true; // ⭐ NEW
     else if (a === "--dry-run") f.dryRun = true;
     else if (a === "--promote-admin" && argv[i + 1]) {
       f.promoteAdminEmail = argv[++i];
@@ -152,12 +154,46 @@ async function backfillPlantsStressDefaults(dryRun = false) {
   }
 }
 
+async function backfillPlantsPhaseDefaults(dryRun = false) {
+  // Backfill lifecycle fields if missing
+  const filter = {
+    $or: [
+      { germinationDays: { $exists: false } },
+      { floweringDays: { $exists: false } },
+      { fruitingDays: { $exists: false } },
+      { lifespanDays: { $exists: false } },
+    ],
+  };
+
+  const update = {
+    $set: {
+      germinationDays: 7,
+      floweringDays: 40,
+      fruitingDays: 60,
+      lifespanDays: 90,
+    },
+  };
+
+  if (dryRun) {
+    const count = await Plant.countDocuments(filter);
+    console.log(`[DRY] Plants missing lifecycle fields: ${count}`);
+    return;
+  }
+
+  const res = await Plant.updateMany(filter, update);
+  const { matched, modified } = fmtUpdateResult(res);
+  console.log(
+    `✓ Backfilled lifecycle fields (germination/flowering/fruiting/lifespan): matched=${matched}, modified=${modified}`
+  );
+}
+
 async function main() {
   const flags = parseFlags(process.argv);
   if (
     !flags.backfillAll &&
     !flags.profilesRole &&
     !flags.plantsStressDefaults &&
+    !flags.plantsPhaseDefaults &&
     !flags.promoteAdminEmail
   ) {
     console.log(`
@@ -165,15 +201,17 @@ Usage:
   npx ts-node server/scripts/maintenance.ts [flags]
 
 Flags:
-  --backfill-all                 Run all backfills (profiles role + plants stress defaults)
+  --backfill-all                 Run all backfills (profiles role + plants stress + plant phase defaults)
   --profiles-role                Backfill Profile.role where missing → "user"
   --plants-stress-defaults       Backfill Plant.graceHours/sunGraceDays and missing temp/water fields
+  --plants-phase-defaults        Backfill lifecycle fields (germination/flowering/fruiting/lifespan)
   --promote-admin <email>        Promote a profile to admin by email
   --dry-run                      Show counts/intent but do not write
 
 Examples:
   npx ts-node server/scripts/maintenance.ts --profiles-role
   npx ts-node server/scripts/maintenance.ts --plants-stress-defaults
+  npx ts-node server/scripts/maintenance.ts --plants-phase-defaults
   npx ts-node server/scripts/maintenance.ts --promote-admin you@example.com
   npx ts-node server/scripts/maintenance.ts --backfill-all
   npx ts-node server/scripts/maintenance.ts --backfill-all --dry-run
@@ -189,6 +227,9 @@ Examples:
     }
     if (flags.backfillAll || flags.plantsStressDefaults) {
       await backfillPlantsStressDefaults(flags.dryRun);
+    }
+    if (flags.backfillAll || flags.plantsPhaseDefaults) {
+      await backfillPlantsPhaseDefaults(flags.dryRun);
     }
     if (flags.promoteAdminEmail) {
       await promoteAdmin(flags.promoteAdminEmail, flags.dryRun);
