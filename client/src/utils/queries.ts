@@ -51,6 +51,7 @@ export const GET_BEDS = gql`
         height
         canopyRadius
         lastSimulatedAt
+        plantedAt
         basePlant {
           _id
           name
@@ -67,10 +68,15 @@ export const GET_BEDS = gql`
           waterMax
           sunGraceDays
           graceHours {
-          cold
-          heat
-          dry
-          wet}
+            cold
+            heat
+            dry
+            wet
+          }
+          germinationDays
+          floweringDays
+          fruitingDays
+          lifespanDays
         }
       }
     }

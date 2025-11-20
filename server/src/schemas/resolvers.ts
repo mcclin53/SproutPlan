@@ -86,6 +86,10 @@ const resolvers: IResolvers = {
           waterMax
           sunGraceDays
           graceHours
+          germinationDays
+          floweringDays
+          fruitingDays
+          lifespanDays
         `,
       });
 

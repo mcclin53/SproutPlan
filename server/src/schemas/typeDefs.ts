@@ -67,6 +67,10 @@ const typeDefs = gql`
     kcInitial: Float
     kcMid: Float
     kcLate: Float
+    germinationDays: Int
+    floweringDays: Int
+    fruitingDays: Int
+    lifespanDays: Int
   }
 
   type GraceHours {
@@ -110,6 +114,10 @@ const typeDefs = gql`
     kcLate: Float
     graceHours: GraceHours
     sunGraceDays: Int
+    germinationDays: Int
+    floweringDays: Int
+    fruitingDays: Int
+    lifespanDays: Int
   }
     
   input PlantPositionInput {
