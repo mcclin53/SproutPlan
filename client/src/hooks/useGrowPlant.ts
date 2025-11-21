@@ -205,7 +205,7 @@ export function useGrowPlant(
 
             const baseRate = plant.baseGrowthRate || 0;
             const overallEff = sunEff * waterEff * tempEff;
-            const dH = baseRate * overallEff;
+            const dH = baseRate * overallEff * phaseMultiplier;
             const dC = dH;
 
             const prev = prevGrownRef.current.find(x => x._id === plant._id) ?? plant;
@@ -271,6 +271,13 @@ export function useGrowPlant(
                   phase = ph;
                 }
 
+                if (phase === "seed" || phase === "dead") {
+                  console.log("[applyMidnightGrowth] No growth due to phase", plant.name, phase);
+                  continue;
+                }
+
+                const baseInputs = buildInputsForPlant ? buildInputsForPlant(plant) : null;
+
                 const variables = {
                   bedId,
                   plantInstanceId: plant._id,
@@ -279,7 +286,7 @@ export function useGrowPlant(
                   shadedHours: 0,
                   tempOkHours: hoursTempOk,
                   modelVersion,
-                  inputs: buildInputsForPlant ? buildInputsForPlant(plant) : null,
+                  inputs: baseInputs ? { ...baseInputs, phase } : { phase },
                 };
 
                 const { data } = await applyMidnightGrowth({ variables });

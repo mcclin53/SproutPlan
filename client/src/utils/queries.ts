@@ -93,6 +93,10 @@ export const GET_PLANTS = gql`
       baseGrowthRate
       maxHeight
       maxCanopyRadius
+      germinationDays
+      floweringDays
+      fruitingDays
+      lifespanDays
     }
   }
 `;

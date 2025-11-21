@@ -81,6 +81,7 @@ export const CREATE_BED = gql`
         height
         canopyRadius
         lastSimulatedAt
+        plantedAt
         basePlant {
           _id
           name
@@ -91,6 +92,21 @@ export const CREATE_BED = gql`
           baseGrowthRate
           maxHeight
           maxCanopyRadius
+          tempMin
+          tempMax
+          waterMin
+          waterMax
+          sunGraceDays
+          graceHours {
+            cold
+            heat
+            dry
+            wet
+          }
+          germinationDays
+          floweringDays
+          fruitingDays
+          lifespanDays
         }
       }
     }
@@ -120,6 +136,7 @@ export const ADD_PLANTS_TO_BED = gql`
         height
         canopyRadius
         lastSimulatedAt
+        plantedAt
         basePlant {
           _id
           name
@@ -130,6 +147,21 @@ export const ADD_PLANTS_TO_BED = gql`
           baseGrowthRate
           maxHeight
           maxCanopyRadius
+          tempMin
+          tempMax
+          waterMin
+          waterMax
+          sunGraceDays
+          graceHours {
+            cold
+            heat
+            dry
+            wet
+          }
+          germinationDays
+          floweringDays
+          fruitingDays
+          lifespanDays
         }
       }
     }
@@ -149,6 +181,7 @@ export const REMOVE_PLANTS_FROM_BED = gql`
         height
         canopyRadius
         lastSimulatedAt
+        plantedAt
         basePlant {
           _id
           name
@@ -159,6 +192,21 @@ export const REMOVE_PLANTS_FROM_BED = gql`
           baseGrowthRate
           maxHeight
           maxCanopyRadius
+          tempMin
+          tempMax
+          waterMin
+          waterMax
+          sunGraceDays
+          graceHours {
+            cold
+            heat
+            dry
+            wet
+          }
+          germinationDays
+          floweringDays
+          fruitingDays
+          lifespanDays
         }
       }
     }
@@ -176,6 +224,7 @@ export const MOVE_PLANT_IN_BED = gql`
         height
         canopyRadius
         lastSimulatedAt
+        plantedAt
         basePlant {
           _id
           name
@@ -186,6 +235,21 @@ export const MOVE_PLANT_IN_BED = gql`
           baseGrowthRate
           maxHeight
           maxCanopyRadius
+          tempMin
+          tempMax
+          waterMin
+          waterMax
+          sunGraceDays
+          graceHours {
+            cold
+            heat
+            dry
+            wet
+          }
+          germinationDays
+          floweringDays
+          fruitingDays
+          lifespanDays
         }
       }
     }
@@ -252,6 +316,10 @@ export const CREATE_PLANT = gql`
       maxCanopyRadius
       daysToHarvest
       baseGrowthRate
+      germinationDays
+      floweringDays
+      fruitingDays
+      lifespanDays
     }
   }
 `;

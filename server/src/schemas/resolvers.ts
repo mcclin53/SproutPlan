@@ -362,7 +362,27 @@ const resolvers: IResolvers = {
       const bed = await Bed.create({ width, length, plants: [] });
       const populated = await bed.populate({
         path: "plants.basePlant",
-        select: "_id name image waterReq spacing sunReq baseGrowthRate maxHeight maxCanopyRadius",
+        select: `
+          _id
+          name
+          image
+          waterReq
+          spacing
+          sunReq
+          baseGrowthRate
+          maxHeight
+          maxCanopyRadius
+          tempMin
+          tempMax
+          waterMin
+          waterMax
+          sunGraceDays
+          graceHours
+          germinationDays
+          floweringDays
+          fruitingDays
+          lifespanDays
+        `,
       });
 
       return {
@@ -391,7 +411,27 @@ const resolvers: IResolvers = {
         { new: true }
       ).populate({
         path: "plants.basePlant",
-        select: "_id name image waterReq spacing sunReq baseGrowthRate maxHeight maxCanopyRadius",
+        select: `
+          _id
+          name
+          image
+          waterReq
+          spacing
+          sunReq
+          baseGrowthRate
+          maxHeight
+          maxCanopyRadius
+          tempMin
+          tempMax
+          waterMin
+          waterMax
+          sunGraceDays
+          graceHours
+          germinationDays
+          floweringDays
+          fruitingDays
+          lifespanDays
+        `,
       });
 
       if (!updatedBed) throw new Error("Bed not found");
@@ -427,7 +467,27 @@ const resolvers: IResolvers = {
 
       const populated = await bed.populate({
         path: "plants.basePlant",
-        select: "_id name image waterReq spacing sunReq baseGrowthRate maxHeight maxCanopyRadius",
+        select: `
+          _id
+          name
+          image
+          waterReq
+          spacing
+          sunReq
+          baseGrowthRate
+          maxHeight
+          maxCanopyRadius
+          tempMin
+          tempMax
+          waterMin
+          waterMax
+          sunGraceDays
+          graceHours
+          germinationDays
+          floweringDays
+          fruitingDays
+          lifespanDays
+        `,
       });
 
       return {
@@ -460,7 +520,27 @@ const resolvers: IResolvers = {
 
   const populated = await bed.populate({
     path: "plants.basePlant",
-    select: "_id name image waterReq spacing sunReq baseGrowthRate maxHeight maxCanopyRadius",
+    select: `
+      _id
+      name
+      image
+      waterReq
+      spacing
+      sunReq
+      baseGrowthRate
+      maxHeight
+      maxCanopyRadius
+      tempMin
+      tempMax
+      waterMin
+      waterMax
+      sunGraceDays
+      graceHours
+      germinationDays
+      floweringDays
+      fruitingDays
+      lifespanDays
+    `,
   });
 
   return {
@@ -475,17 +555,7 @@ const resolvers: IResolvers = {
       canopyRadius: p.canopyRadius ?? 0,
       lastSimulatedAt: p.lastSimulatedAt || null,
       plantedAt: p.plantedAt || null,
-      basePlant: p.basePlant ? {
-        _id: (p.basePlant as any)._id.toString(),
-        name: (p.basePlant as any).name,
-        image: (p.basePlant as any).image,
-        waterReq: (p.basePlant as any).waterReq,
-        spacing: (p.basePlant as any).spacing,
-        sunReq: (p.basePlant as any).sunReq,
-        baseGrowthRate: (p.basePlant as any).baseGrowthRate,
-        maxHeight: (p.basePlant as any).maxHeight,
-        maxCanopyRadius: (p.basePlant as any).maxCanopyRadius,
-      } : null,
+      basePlant: p.basePlant as any,
     })),
   };
 },
@@ -500,7 +570,27 @@ const resolvers: IResolvers = {
         { new: true }
       ).populate({
         path: "plants.basePlant",
-        select: "_id name image waterReq spacing",
+        select: `
+          _id
+          name
+          image
+          waterReq
+          spacing
+          sunReq
+          baseGrowthRate
+          maxHeight
+          maxCanopyRadius
+          tempMin
+          tempMax
+          waterMin
+          waterMax
+          sunGraceDays
+          graceHours
+          germinationDays
+          floweringDays
+          fruitingDays
+          lifespanDays
+        `,
       });
 
       if (!updatedBed) throw new Error("Bed not found");
