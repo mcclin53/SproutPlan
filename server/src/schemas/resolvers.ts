@@ -30,6 +30,43 @@ CLIMO_QUEUE.on("error", (err) => {
   console.error("[CLIMO_QUEUE] Redis/Queue error:", err);
 });
 
+type LeafLayoutEntry = {
+  index: number;
+  angleDeg: number;
+  radiusPx: number;
+  heightFrac: number;
+};
+
+function generateLeafLayout(
+  maxLeaves: number,
+  maxCanopyRadius?: number | null
+): LeafLayoutEntry[] {
+  const layout: LeafLayoutEntry[] = [];
+  const baseRadius = (maxCanopyRadius ?? 40) * 0.5; // px
+  let side = 1; // alternate left/right
+
+  for (let i = 0; i < maxLeaves; i++) {
+    const t = (i + 1) / (maxLeaves + 1); // 0..1 up the stem
+    const heightFrac = t;
+
+    const angleJitter = (Math.random() - 0.5) * 20; // -10..+10 deg
+    const baseAngle = 25 + i * 7; // more angle as we go up
+    const angleDeg = side * baseAngle + angleJitter;
+    side *= -1;
+
+    const radiusPx = baseRadius * (0.4 + 0.6 * t); // 40–100% of baseRadius
+
+    layout.push({
+      index: i,
+      angleDeg,
+      radiusPx,
+      heightFrac,
+    });
+  }
+
+  return layout;
+}
+
 async function reverseGeocodeWithNominatim(lat: number, lon: number) {
   const url =
     `https://nominatim.openstreetmap.org/reverse` +
@@ -103,6 +140,8 @@ const resolvers: IResolvers = {
           canopyRadius: p.canopyRadius ?? 0,
           lastSimulatedAt: p.lastSimulatedAt || null,
           plantedAt: p.plantedAt || null,
+          leafGrowth: p.leafGrowth ?? 0,
+          leafLayout: p.leafLayout ?? [],
           basePlant: p.basePlant,
         })),
         x: bed.x ?? 0,
@@ -382,6 +421,7 @@ const resolvers: IResolvers = {
           floweringDays
           fruitingDays
           lifespanDays
+          maxLeaves
         `,
       });
 
@@ -396,6 +436,8 @@ const resolvers: IResolvers = {
           canopyRadius: p.canopyRadius ?? 0,
           lastSimulatedAt: p.lastSimulatedAt || null,
           plantedAt: p.plantedAt || null,
+          leafGrowth: p.leafGrowth ?? 0,
+          leafLayout: p.leafLayout ?? [],
         })),
         x: populated.x ?? 0,
         y: populated.y ?? 0,
@@ -447,6 +489,8 @@ const resolvers: IResolvers = {
           canopyRadius: p.canopyRadius ?? 0,
           lastSimulatedAt: p.lastSimulatedAt || null,
           plantedAt: p.plantedAt || null,
+          leafGrowth: p.leafGrowth ?? 0,
+          leafLayout: p.leafLayout ?? [],
         })),
         x: updatedBed.x ?? 0,
         y: updatedBed.y ?? 0,
@@ -501,6 +545,8 @@ const resolvers: IResolvers = {
           canopyRadius: p.canopyRadius ?? 0,
           lastSimulatedAt: p.lastSimulatedAt || null,
           plantedAt: p.plantedAt || null,
+          leafGrowth: p.leafGrowth ?? 0,
+          leafLayout: p.leafLayout ?? [],
         })),
       };
     },
@@ -513,7 +559,16 @@ const resolvers: IResolvers = {
 
     basePlantIds.forEach((basePlantId, index) => {
         const pos = positions[index] || { x: 0, y: 0 };
-        bed.plants.push({ basePlant: basePlantId, x: pos.x, y: pos.y, height: 0, canopyRadius: 0, lastSimulatedAt: null, } as any);
+        bed.plants.push({ 
+          basePlant: basePlantId, 
+          x: pos.x, 
+          y: pos.y, 
+          height: 0, 
+          canopyRadius: 0, 
+          lastSimulatedAt: null, 
+          leafGrowth: 0,
+        leafLayout: [],
+      } as any);
     });
 
   await bed.save();
@@ -555,6 +610,8 @@ const resolvers: IResolvers = {
       canopyRadius: p.canopyRadius ?? 0,
       lastSimulatedAt: p.lastSimulatedAt || null,
       plantedAt: p.plantedAt || null,
+      leafGrowth: p.leafGrowth ?? 0,
+      leafLayout: p.leafLayout ?? [],
       basePlant: p.basePlant as any,
     })),
   };
@@ -602,6 +659,12 @@ const resolvers: IResolvers = {
           basePlant: p.basePlant,
           x: p.x ?? 0,
           y: p.y ?? 0,
+          height: p.height ?? 0,
+          canopyRadius: p.canopyRadius ?? 0,
+          lastSimulatedAt: p.lastSimulatedAt || null,
+          plantedAt: p.plantedAt || null,
+          leafGrowth: p.leafGrowth ?? 0,
+          leafLayout: p.leafLayout ?? [],
         })),
       };
     },
@@ -618,7 +681,12 @@ const resolvers: IResolvers = {
           basePlant: p.basePlant,
           x: p.x ?? 0,
           y: p.y ?? 0,
+          height: p.height ?? 0,
+          canopyRadius: p.canopyRadius ?? 0,
+          lastSimulatedAt: p.lastSimulatedAt || null,
           plantedAt: p.plantedAt || null,
+          leafGrowth: p.leafGrowth ?? 0,
+          leafLayout: p.leafLayout ?? [],
         })),
       };
     },
@@ -717,7 +785,7 @@ const resolvers: IResolvers = {
         }: {
           bedId: string;
           plantInstanceId: string;
-          day: string;             // ISO date/time (we’ll new Date it)
+          day: string;
           sunlightHours: number;
           shadedHours?: number;
           tempOkHours: number;
@@ -728,7 +796,7 @@ const resolvers: IResolvers = {
         // 1) Load bed + plant with base caps/knobs
         const bed = await Bed.findById(bedId).populate({
           path: "plants.basePlant",
-          select: "_id name sunReq baseGrowthRate maxHeight maxCanopyRadius",
+          select: "_id name sunReq baseGrowthRate maxHeight maxCanopyRadius maxLeaves",
         });
         if (!bed) throw new Error("Bed not found");
 
@@ -738,10 +806,10 @@ const resolvers: IResolvers = {
         const base: any = plant.basePlant;
         if (!base) throw new Error("BasePlant missing");
 
-        // 2) Normalize day once
+        // normalize day once
         const dayDate = new Date(day);
 
-        // 3) Caps (Infinity fallback if not set)
+        // caps (Infinity fallback if not set)
         const capH =
           typeof base.maxHeight === "number" && Number.isFinite(base.maxHeight)
             ? base.maxHeight
@@ -752,11 +820,11 @@ const resolvers: IResolvers = {
             ? base.maxCanopyRadius
             : Number.POSITIVE_INFINITY;
 
-        // 4) Ensure current values exist & pre-clamp
+        // ensure current values exist & pre-clamp
         plant.height = Math.min(capH, typeof plant.height === "number" ? plant.height : 0);
         plant.canopyRadius = Math.min(capC, typeof plant.canopyRadius === "number" ? plant.canopyRadius : 0);
 
-        // 5) Compute one-day growth (size units/day scaled by efficiency)
+        // compute one-day growth (size units/day scaled by efficiency)
         const sunReq = typeof base.sunReq === "number" ? base.sunReq : 8;
         const eff = sunReq > 0 ? Math.min(1, sunlightHours / sunReq) : 0;
         const baseHeightRate = typeof base.baseGrowthRate === "number" ? base.baseGrowthRate : 1;
@@ -766,7 +834,7 @@ const resolvers: IResolvers = {
             ? baseHeightRate * (capC / capH)
             : baseHeightRate;
 
-        // 6) Apply + clamp
+        // apply + clamp
         const newH = Math.min(capH, plant.height + baseHeightRate * eff);
         const newC = Math.min(capC, plant.canopyRadius + derivedCanopyRate * eff);
 
@@ -774,10 +842,29 @@ const resolvers: IResolvers = {
         plant.canopyRadius = newC;
         plant.lastSimulatedAt = dayDate;
 
-        // 7) Save bed (single-doc write; no transaction)
+        const maxLeaves =
+          typeof base.maxLeaves === "number" && base.maxLeaves > 0 ? base.maxLeaves : 10;
+
+          // `eff` is the “fraction of a leaf” that grows daily.
+          // eff = 1 -> 1 full leaf per day
+          // eff = 0.5 -> 2 days per leaf, etc.
+          const prevLeafGrowth = typeof plant.leafGrowth === "number" ? plant.leafGrowth : 0;
+          const leafGrowthDelta = eff; // you can tweak this later if you want slower/faster leaf growth
+
+          let newLeafGrowth = prevLeafGrowth + leafGrowthDelta;
+          if (newLeafGrowth > maxLeaves) newLeafGrowth = maxLeaves;
+
+          plant.leafGrowth = newLeafGrowth;
+
+          // Ensure layout exists and is persisted
+          if (!plant.leafLayout || plant.leafLayout.length === 0) {
+            plant.leafLayout = generateLeafLayout(maxLeaves, base.maxCanopyRadius);
+          }
+
+        // save bed (single-doc write; no transaction)
         await bed.save();
 
-        // 8) Upsert daily snapshot (idempotent via unique index)
+        // upsert daily snapshot (idempotent via unique index)
         const snapshot = await PlantGrowthSnapshot.findOneAndUpdate(
           { bedId, plantInstanceId, day: dayDate },
           {
@@ -794,6 +881,8 @@ const resolvers: IResolvers = {
                 derivedCanopyRate,
                 capH: Number.isFinite(capH) ? capH : null,
                 capC: Number.isFinite(capC) ? capC : null,
+                leafGrowth: newLeafGrowth,
+                maxLeaves,
               },
             },
           },

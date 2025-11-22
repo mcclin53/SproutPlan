@@ -3,7 +3,9 @@ import useDragPlant from "../hooks/useDragPlant";
 import { useGrowPlant } from "../hooks/useGrowPlant";
 import { useDeath, DeathReason } from "../hooks/useDeath";
 import { resolvePlantImageSrc, handleImageError } from "../utils/plantImage";
-import type { StressOverrides } from "../utils/types";
+import type { StressOverrides, LeafLayoutEntry } from "../utils/types";
+import { LeafyPlantSprite } from "./LeafyPlantSprite";
+// import { getLeafSpritesFor } from "../utils/leafSprites";
 
 type GraceHours = {
   cold?: number;
@@ -34,6 +36,8 @@ interface BasePlant {
   floweringDays?: number;
   fruitingDays?: number;
   lifespanDays?: number;
+  maxLeaves?: number;
+  leafSpriteSet?: string;
 }
 
 interface PlantInstance {
@@ -45,6 +49,10 @@ interface PlantInstance {
   canopyRadius?: number;
   plantedAt: string | Date;
   phase?: GrowthPhase;
+  leafGrowth?: number;
+  leafLayout?: LeafLayoutEntry[];
+  leafGrowth?: number;
+  leafLayout?: LeafLayoutEntry[];
 }
 
 interface Props {
@@ -266,6 +274,12 @@ export default function PlantInstanceComponent({
 
   const boxShadowStyle = isNight ? "none" : `${shadowX}px ${shadowY}px ${shadowBlur}px ${shadowColor}`;
 
+  const leafGrowth = plantInstance.leafGrowth ?? 0;
+  const leafLayout = plantInstance.leafLayout ?? [];
+  const maxLeaves = bp.maxLeaves ?? 10;
+  const sprites = getLeafSpritesFor(bp.leafSpriteSet || bp.name);
+  const spriteSize = 40;
+
   return (
     <div
       className="plant-wrapper"
@@ -303,6 +317,24 @@ export default function PlantInstanceComponent({
         }}
         onError={handleImageError}
       />
+      {sprites.length > 0 && leafLayout.length > 0 && (
+        <div
+          style={{
+            position: "absolute",
+            left: "50%",
+            top: "50%",
+            pointerEvents: "none",
+          }}
+        >
+          <LeafyPlantSprite
+            leafGrowth={leafGrowth}
+            leafLayout={leafLayout}
+            maxLeaves={maxLeaves}
+            sprites={sprites}
+            sizePx={spriteSize}
+          />
+        </div>
+      )}
       <div
         style={{
           position: "absolute",

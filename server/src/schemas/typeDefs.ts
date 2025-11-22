@@ -142,6 +142,13 @@ const typeDefs = gql`
     sunGraceDays: Int
   }
 
+  type LeafLayoutEntry {
+    index: Int
+    angleDeg: Float
+    radiusPx: Float
+    heightFrac: Float
+  }
+
   type PlantInstance {
     _id: ID!
     basePlant: Plant!
@@ -151,6 +158,8 @@ const typeDefs = gql`
     height: Float
     canopyRadius: Float
     lastSimulatedAt: DateTime
+    leafGrowth: Float
+    leafLayout: [LeafLayoutEntry]
   }
 
   type Bed {

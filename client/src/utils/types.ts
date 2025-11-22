@@ -19,3 +19,10 @@ export type StressOverrides = {
   tempC?: number | null;
   soilMoisture?: number | null; // same scale as the soil model (0–1 or mm)
 };
+
+export interface LeafLayoutEntry {
+  index: number;
+  angleDeg: number;
+  radiusPx: number;
+  heightFrac: number;
+}
